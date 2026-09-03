@@ -1,9 +1,9 @@
 {
   "channel": "release",
-  "release": "20260903-1449-a510390",
-  "git_commit": "a510390",
-  "source_generated_at": "2026-09-03T05:49:37.335Z",
-  "synced_at": "2026-09-03T09:12:35.089Z",
+  "release": "20260903-1018-7ba53db",
+  "git_commit": "7ba53db",
+  "source_generated_at": "2026-09-03T10:18:55.146Z",
+  "synced_at": "2026-09-03T10:18:57.847Z",
   "canonical_target": "claude-code",
   "skills": [
     {
@@ -26,9 +26,9 @@
     },
     {
       "id": "zq-video-understanding",
-      "version": "0.2.1",
+      "version": "1.1.1",
       "type": "paid",
-      "source": "packages/zq-video-understanding/0.2.1/claude-code/SKILL.md"
+      "source": "packages/zq-video-understanding/1.1.1/claude-code/SKILL.md"
     }
   ]
 }

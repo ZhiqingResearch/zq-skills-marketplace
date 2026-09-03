@@ -1,109 +1,147 @@
 ---
 name: zq-video-understanding
-description: 对用户提供的视频做多模态理解（画面、对白、声音联合分析），交付结构化分析（摘要、关键词、人物、物体、场景时间轴）、按时间戳从原视频提取的代表性截图（ZIP 打包）与本次用量费用摘要。当用户给出视频文件、要求理解/分析/总结视频内容或提取关键画面时使用。
+description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v0.2.1 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v1.1.1 target=claude-code -->
 
-# 视频理解与关键截图提取
+# 视频理解与平台关键帧提取
 
-把用户提供的视频交给平台做多模态理解，按平台返回的时间戳从**原视频**
-提取真实帧（非生成式图片），打包交付。本剧本只负责收集物料、转发
-问题、跟随平台指令；理解提示词、选点策略、模型接入均在平台侧。
+把用户提供的视频通过预签名地址直传平台对象存储，启动异步分析，轮询结果，
+再下载平台脚本从原视频提取的关键帧。不要在客户端自行猜测时间点，也不要把
+平台内部提示词、模型路由或脚本内容复述给用户。
 
 ## 何时使用 / 何时不使用
 
-- 使用：用户提供视频文件（≤150MB），想要内容理解/总结、结构化分析
-  （人物/物体/场景时间轴）、或提取 6–10 张代表性截图；
-- 不使用：只要本地剪辑/转码/压缩；图片（非视频）的理解；实时流分析。
+- 使用：用户希望理解、总结一个 `.mp4`、`.mov` 或 `.webm` 视频，或希望
+  获取 6–10 张有代表性的真实画面。
+- 不使用：实时视频流、超过 150MB 的视频、纯剪辑/转码任务，以及要求完整
+  对白转写或声音分析的任务。当前 Demo 使用抽样画面做视觉分析，不处理音轨。
 
-## 首次使用引导：API key 配置（安装后第一次运行时必须先做）
+## API key 配置
 
-本 skill 调用平台能力并按次计费，**key 未配置前不得开始任何流程步骤、
-不得发起任何计费动作**。首次被加载或被调用时，先做以下检查：
+所有平台请求都使用项目为该用户签发的 KeyB：
+`Authorization: Bearer <ZQ_API_KEY>`。KeyB 以 `sk-` 或 `sk_` 开头，只允许操作创建
+它的同一项目与用户数据。
 
-1. 读取 `~/.config/zq-skills/credentials` 中的 `ZQ_API_KEY`
-   （沙箱环境读不到本地文件，见第 4 条）。
-2. 未配置 → **先向用户原样输出下面的引导文案**，等用户完成配置并
-   明确继续后再开始流程：
-
-   > 【首次使用提示】本 skill 调用 zq-skills 平台能力，按次消耗积分，
-   > 使用前需配置 API key（约 1 分钟）：
-   > 1. 到 Skill 市场账号页领取 API key（`sk-` 或 `sk_` 开头）；
-   > 2. 桌面端：安装 `zq-config` skill 后对我说"配置 key"；或手动写入
-   >    `~/.config/zq-skills/credentials`（权限 600，一行
-   >    `ZQ_API_KEY=sk-...`）；
-   > 3. 网页/沙箱端：直接把 key 发给我，我在本次会话中使用（不会回显）。
-   > 配置完成后对我说"继续"。未配置前我不会开始流程，也不会产生扣费。
-
-3. 已配置 → 用 `GET https://skills-platform-api-dev.zhiqingresearch.com/v1/account/balance` 验证
-   （200 即有效，顺带向用户展示余额），然后进入流程。
-4. 沙箱环境（网页 agent 会话内，读不到本地文件）：key 由用户在会话中
-   提供一次，保存在会话内存中传给脚本/请求，禁止回显到输出。
-5. 任何情况下不得把 key 完整展示在对话中、写进代码或仓库。
-6. 更完整的配置/校验/轮换/删除，引导用户安装 `zq-config` skill。
+1. 优先从 `~/.config/zq-skills/credentials` 读取 `ZQ_API_KEY`；也可使用当前
+   会话安全注入的环境变量。
+2. 若未配置，提示用户向接入项目领取 KeyB，或使用 `zq-config` 完成配置；
+   不得要求用户把 KeyA 或对象存储密钥交给你。
+3. 不回显完整 KeyB，不把它写入仓库、日志、命令参数或交付文件。
+4. 当前 Demo 没有独立余额查询端点。首次业务请求返回 401 时再引导用户更新
+   KeyB，不要调用不存在的 `/v1/account/balance`。
 
 ## 你需要向用户收集的物料
 
 | 物料 | 说明 | 必须 |
 | --- | --- | --- |
-| 视频文件 | 常见格式（mp4/mov/webm），≤150MB；超限先引导压缩 | 是 |
-| 分析偏好 | 供应商、截图数量、输出语言、关注点（见 intake） | 否（有默认） |
+| 视频文件 | `.mp4` / `.mov` / `.webm`，1 字节至 150MB | 是 |
+| 截图数量 | 6–10，默认 8 | 否 |
+| 结果语言 | `中文` 或 `English`，默认中文 | 否 |
+| 视觉关注点 | 例如“重点看商品结构变化”；最长 1000 字符 | 否 |
 
-## 开始前：向用户提问（intake）
+本地读取文件名、字节数和扩展名，并按以下映射确定 `content_type`：
+`.mp4 → video/mp4`、`.mov → video/quicktime`、`.webm → video/webm`。
 
-按 `intake/questions.yaml` 初始题集问齐偏好（供应商 / 截图数量 /
-输出语言 / 关注点）——直连模式下没有服务端动态追问，以本题集为准，
-用户跳过的按默认值提交。转述问题保持原意，不要替用户作答。
+## 开始前提问
+
+只询问用户尚未给出的可选项。用户没有偏好时直接采用 `shot_count=8`、
+`analysis_lang=中文`，不要把平台内部供应商选择暴露成必答问题。开始上传前
+明确告知：原视频在分析结束后删除；输出关键帧可能按部署配置经 CDN 提供。
 
 ## 执行流程
 
-两条铁律：
+API 根地址使用 `https://skills-platform-api-dev.zhiqingresearch.com`。平台请求带 KeyB；预签名 PUT 请求绝不能
+携带 KeyB。为视频分析生成一个 8–128 字符的稳定 `Idempotency-Key`，网络
+重试时必须复用，避免重复任务。
 
-1. 每次"提交分析"生成一次 `Idempotency-Key`（uuid）：同一分析的
-   登记与重试**复用同一个 key**（重放返回首次结果，不会重复扣费）；
-   开始新的分析才换新 key；
-2. 严格按下列序列调用，不自创步骤、不编造参数。
+### 1. 登记并直传视频
 
-调用序列（均带 `Authorization: Bearer <ZQ_API_KEY>`）：
+```http
+POST https://skills-platform-api-dev.zhiqingresearch.com/v1/files
+Authorization: Bearer <ZQ_API_KEY>
+Content-Type: application/json
 
+{
+  "filename": "demo.mp4",
+  "content_type": "video/mp4",
+  "size_bytes": 10485760
+}
 ```
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/files                          上传登记（返回 file_ref + 预签名 URL）
-PUT  {预签名 URL}                                        上传视频原文件（一次性地址，限时有效）
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/video/analysis                  提交分析（异步 202 + analysis_id，此处计费）
-GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/video/analysis/{analysis_id}    轮询直到 completed / failed
+
+成功返回 HTTP 201，包含 `file_ref`、`upload.url`、`upload.headers`、
+`upload.expires_at` 和 `expires_at`。随后在 15 分钟内执行：
+
+```http
+PUT {upload.url}
+Content-Type: <upload.headers 中的 Content-Type>
+
+<原始视频二进制>
 ```
 
-执行要点（本 skill 特有）：
+PUT 通常返回 200 或 204。必须原样使用平台返回的 URL 与请求头，不修改查询
+参数，不向 Spaces/CDN 地址附加 `Authorization`。
 
-- `/v1/files` 登记体：`{skill_id: zq-video-understanding, filename,
-  content_type, size_bytes}`——平台按 file_policy 校验（mp4/mov/webm、
-  ≤150MB），422 时原样转述字段提示并引导压缩或换格式；
-- 分析提交体：`{file_ref, provider, shot_count, analysis_lang,
-  extra_focus}`，偏好取自 intake 答案（未答按默认：auto / 8 / 中文 / 空）；
-- 轮询间隔 5–10 秒；超过约 10 分钟仍未完成：告知用户稍后凭
-  analysis_id 查询，不要空转；
-- 用户要求中止：说明已受理的分析无法中止（会继续执行并计费）；
-  尚未提交的（还在收集物料/问答阶段）直接停止即可，不产生费用；
-- **抽帧执行模式自检（轮询到 completed 后）**：拿到结果的 shots
-  时间戳后——若你能运行本地脚本且本 skill 附带
-  `client/scripts/extract_frames.py`，在执行环境安装依赖
-  （`client/scripts/requirements.txt`）后对**用户原始视频**按时间戳
-  抽帧（文件路径由调用方传入，凭据经环境变量）；若不能（网页沙箱
-  无法装依赖），使用结果中平台生成的截图下载链接，无需本地抽帧。
+### 2. 创建异步分析
+
+```http
+POST https://skills-platform-api-dev.zhiqingresearch.com/v1/video/analysis
+Authorization: Bearer <ZQ_API_KEY>
+Idempotency-Key: <本次分析稳定键>
+Content-Type: application/json
+
+{
+  "file_ref": "file_...",
+  "provider": "auto",
+  "shot_count": 8,
+  "analysis_lang": "中文",
+  "extra_focus": "可省略"
+}
+```
+
+HTTP 202 返回 `analysis_id`、`status` 和 `billed`。Demo 中
+`billed.state=quoted` 只表示报价展示，不能向用户声称积分已经冻结或扣除。
+
+### 3. 轮询并获取结果
+
+每隔至少 5 秒查询一次：
+
+```http
+GET https://skills-platform-api-dev.zhiqingresearch.com/v1/video/analysis/{analysis_id}
+Authorization: Bearer <ZQ_API_KEY>
+```
+
+- `queued` / `processing`：继续等待；
+- `completed`：读取 `result` 和 `issues`；
+- `failed` / `cancelled`：停止轮询并转述 `issues`；
+- 超过约 10 分钟仍未终态：保存 `analysis_id`，提示用户稍后继续查询，
+  不要高频空转。
+
+`result.shots[].time` 是模型选择的原视频秒数，`frame_url` 是平台已按该时间点
+执行抽帧脚本得到的 JPEG 入口。不要再次在本地抽帧。
+
+### 4. 下载关键帧
+
+对每个 `frame_url` 先向平台发带 KeyB 的 GET。平台校验归属后返回 HTTP 302，
+跳转到 CDN 或短期签名地址。跟随跨域跳转时不要把 KeyB 转发给目标存储域名。
 
 ## 交付
 
-交付说明与话术见 `deliverables.md`（渲染安装包时会并入本文）。
+向用户交付：结构化摘要、关键词、人物、物体、场景时间轴、按顺序命名的
+关键帧，以及 `usage` 中实际返回的模型、token 和费用信息。`issues` 必须一并
+转述；尤其不能隐瞒 `sampled_visual_analysis`，它表示当前 Demo 只基于候选帧
+做视觉分析，音轨或采样间瞬时画面可能未被覆盖。
 
 ## 出错处理
 
-| 情况 | 处理 |
+| 状态 | 处理 |
 | --- | --- |
-| 401 | key 无效或过期 → 回到"首次使用引导"重新配置 |
-| 402 | 积分不足 → 指引用户到市场充值后重试 |
-| 404 | analysis_id 不存在或已过期 → 确认 id；已过期的重新提交分析 |
-| 409 | 幂等重放 → 沿用首次响应继续，同一分析不要换 key 重提 |
-| 422 | 输入不合法（如格式/大小不符）→ 原样转述字段级提示，不解释规则来源 |
-| 5xx / 网络 | 间隔重试 ≤2 次（写请求有幂等键保护），仍失败告知稍后再试 |
+| 401 | KeyB 缺失、失效或不属于当前项目用户；引导重新领取/配置 |
+| 409 | 同一 `Idempotency-Key` 被用于不同参数；复用原参数或换新的业务键 |
+| 422 | 按 `field_errors` 修正文件类型、大小、上传状态或分析参数 |
+| 429 | 当前 KeyB 并发任务已达上限；等待已有任务终态后重试 |
+| 503 / 网络错误 | 间隔重试最多 2 次；分析 POST 必须复用同一幂等键 |
+| 404 | `analysis_id` / 关键帧不存在、过期或不属于当前 KeyB |
 
-除错误提示外，不要把原始 JSON 响应整段丢给用户，转述要点即可。
+错误内容只转述用户可行动的信息，不暴露对象键、签名 URL、内部脚本错误、
+模型供应商密钥或服务端堆栈。
