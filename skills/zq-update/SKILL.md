@@ -1,14 +1,15 @@
 ---
 name: zq-update
-version: 0.1.1
-description: 检查已安装的 zq-skills 系列 skill 是否有新版本：扫描本地安装的版本标记，与平台最新清单比对，并指引通过 Skill 市场更新重装。当用户想检查 skill 更新、升级已安装的 skill，或付费 skill 报 409 版本过旧时使用。
+version: 0.1.2
+description: 检查已安装的 zq-skills 系列 skill 是否有新版本：扫描本地安装的版本标记，与公共分发仓库最新清单比对，并指引通过 Skill 市场或 skills CLI 更新重装。当用户想检查 skill 更新、升级已安装的 skill，或付费 skill 报 409 版本过旧时使用。
 ---
-<!-- zq-skills: zq-update v0.1.1 target=free -->
+<!-- zq-skills: zq-update v0.1.2 target=free -->
 
 # zq-update — skill 更新检查助手
 
 检查已安装的 zq-skills 系列 skill（付费编排型 + 免费）是否有新版本，
-并指引更新。免费 skill，本地扫描 + 只读查询，不创建 run、不产生计费。
+并指引更新。免费 skill，本地扫描 + 比对公共分发仓库清单，全程不需要
+API key、不请求平台 API、不产生计费。
 
 ## 何时使用 / 何时不使用
 
@@ -41,18 +42,18 @@ cursor/paste，免费为 free）。免费 skill（zq-config 等）同样带版�
 
 ## 第二步：查询最新版本（可选，更准确）
 
-读取 `~/.config/zq-skills/credentials` 的 key 与地址（同 zq-config），
-调用只读清单端点：
+从公共分发仓库拉取机器可读的最新版本清单——不需要 API key，不请求
+平台 API，不产生任何计费：
 
 ```sh
-curl -s \
-  -H "Authorization: Bearer $(grep '^ZQ_API_KEY=' ~/.config/zq-skills/credentials | cut -d= -f2)" \
-  "$(grep '^ZQ_API_BASE=' ~/.config/zq-skills/credentials | cut -d= -f2 || echo https://skills-platform-api-dev.zhiqingresearch.com)/v1/skills"
+curl -s https://raw.githubusercontent.com/ZhiqingResearch/zq-skills-marketplace/main/.release.json
 ```
 
-沙箱环境：key 由用户会话内提供一次（禁止回显），同 zq-config 的
-沙箱指引。未配置 key 时不阻塞：直接引导用户到 Skill 市场 skill 页
-查看最新版本号比对。
+读取 `skills[].id` 与 `skills[].version`，与第一步的本地扫描结果比对。
+该快照由发版流水线自动同步（`release` 字段为来源发版号），与市场发布
+同源。raw 地址不可达时降级：解析同一仓库 README 的 Skills 版本表，或
+让用户打开 `https://github.com/ZhiqingResearch/zq-skills-marketplace`
+目视比对。
 
 ## 第三步：比对与更新指引
 
@@ -67,8 +68,8 @@ curl -s \
 
 1. **市场重装（推荐，全端通用）**：市场 skill 页选同一目标产品重新
    一键安装，新文件覆盖旧版（同目录同名覆盖）；
-2. **桌面端手动覆盖**：市场下载最新安装包，把渲染文件覆盖写入原
-   skill 目录；
+2. **skills CLI（桌面端）**：`npx skills add ZhiqingResearch/zq-skills-marketplace@<skill-id>`
+   重新安装单个 skill 覆盖旧版（与市场同源，都来自分发仓库）；
 3. 网页端：市场复制最新粘贴块，替换旧提示词保存。
 
 更新完成后建议重新触发一次该 skill 验证正常（首次运行仍会做 key
@@ -78,6 +79,6 @@ curl -s \
 
 | 情况 | 处理 |
 | --- | --- |
-| 401 | key 无效 → 引导 zq-config 的 rotate 流程 |
-| 网络错误 | 检查 ZQ_API_BASE；稍后重试或直接看市场页面 |
-| 扫不到版本标记 | 该 skill 可能不是 zq-skills 系列或为免费 skill；如实告知 |
+| raw 清单拉取失败 | 重试一次；仍失败降级用 README 版本表或仓库页面目视比对 |
+| 清单 JSON 解析失败 | 分发仓库同步中或格式变化；改看 README 版本表 |
+| 扫不到版本标记 | 该 skill 可能不是 zq-skills 系列；如实告知 |

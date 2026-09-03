@@ -1,16 +1,16 @@
 {
   "channel": "release",
-  "release": "20260903-1116-e7120ac",
-  "git_commit": "e7120ac",
-  "source_generated_at": "2026-09-03T11:16:16.792Z",
-  "synced_at": "2026-09-03T11:16:20.790Z",
+  "release": "20260903-1134-611c7ad",
+  "git_commit": "611c7ad",
+  "source_generated_at": "2026-09-03T11:34:53.262Z",
+  "synced_at": "2026-09-03T11:34:57.469Z",
   "canonical_target": "claude-code",
   "skills": [
     {
       "id": "zq-amazon-product-video",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "type": "paid",
-      "source": "packages/zq-amazon-product-video/0.1.1/claude-code/SKILL.md"
+      "source": "packages/zq-amazon-product-video/0.1.2/claude-code/SKILL.md"
     },
     {
       "id": "zq-config",
@@ -20,9 +20,9 @@
     },
     {
       "id": "zq-update",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "type": "free",
-      "source": "packages/zq-update/0.1.1/SKILL.md"
+      "source": "packages/zq-update/0.1.2/SKILL.md"
     },
     {
       "id": "zq-video-understanding",
