@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 根据商品图片与资料生成与真实商品结构一致的 Amazon 商品广告视频：平台完成素材分析、缺失视角补图、多图参考视频生成与商品一致性质检，剧本在会话内组织素材、事实、提示词、成片四个确认门并渐进返修。当用户要为商品制作广告视频、商品页视频素材时使用。
 ---
-<!-- zq-skills: zq-amazon-product-video v0.1.0 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v0.1.1 target=claude-code -->
 
 # Amazon 商品广告视频生成
 
@@ -15,7 +15,7 @@ description: 根据商品图片与资料生成与真实商品结构一致的 Ama
 ## 何时使用 / 何时不使用
 
 - 使用：用户为 Amazon（或类似电商）商品页制作广告视频——能提供商品
-  图片（至少 1 张，建议 ≥5 张）与商品名称、卖点，并确定时长/画幅等
+  图片（至少 1 张，视角越全效果越好）与商品名称、卖点，并确定时长/画幅等
   规格；
 - 不使用：只要本地剪辑/转码/压缩；对已有视频做理解分析或截图
   （用 zq-video-understanding）；无商品实拍素材的纯创意视频。
@@ -50,17 +50,88 @@ description: 根据商品图片与资料生成与真实商品结构一致的 Ama
 
 | 物料 | 说明 | 必须 |
 | --- | --- | --- |
-| 商品图片 | jpg/jpeg/png/webp，单张 ≤10MB；至少 1 张，建议 ≥5 张且覆盖正面、两侧、背面/侧面、部件特写等关键视角（越全越好） | 是 |
+| 商品图片 | jpg/jpeg/png/webp，单张 ≤10MB；至少 1 张、张数不限，尽量覆盖正面、两侧、背面/侧面、部件特写等关键视角（视角越全效果越好；不足时平台会在输入分析时自动补齐并标注 AI 生成，真实拍摄图可随时补充替换） | 是 |
 | 商品名称 | 用于识别商品与包装身份 | 是 |
 | 商品卖点 | 一条或多条，将进入画面表达 | 是 |
 | 商品类目 / 属性 | 可选；缺省由平台识别 | 否 |
-| 视频规格 | 时长（10/15/20/30 秒）、画幅（16:9/9:16/1:1）；分辨率、语言、音频见 intake 默认值 | 是 |
+| 视频规格 | 时长（10/15/20/30 秒）、画幅（16:9/9:16/1:1）；分辨率、语言、音频等默认值见下方初始题集 | 是 |
 
 ## 开始前：向用户提问（intake）
 
-按 `intake/questions.yaml` 初始题集问齐信息——直连模式下没有服务端
-动态追问，以本题集为准，用户跳过的按默认值提交。转述问题保持原意，
-不要替用户作答。
+直连模式下没有服务端动态追问，按下面的初始题集问齐信息，以本题集
+为准，用户跳过的按默认值提交。转述问题保持原意，不要替用户作答。
+
+```yaml
+# zq-amazon-product-video —— intake 初始题集
+# 直连模式下本题集即最终题集（无服务端动态追问）；
+# 只放"提交能力任务前就能确定"的问题，用户跳过的按默认值提交。
+version: 1
+questions:
+  - id: product_name
+    ask: 商品名称是什么？（用于识别商品与包装身份）
+    type: text
+    required: true
+  - id: selling_points
+    ask: 商品的核心卖点有哪些？（将进入视频画面表达，可多条）
+    type: text
+    required: true
+  - id: category
+    ask: 商品属于哪个类目？
+    type: choice
+    choices: [自动识别, 美妆, 电脑/电子, 小家电, 家居, 服装, 食品]
+    required: false
+    default: 自动识别
+  - id: attributes
+    ask: 有没有商品属性资料（尺寸/材质/颜色/包装内容等）？可直接粘贴
+    type: text
+    required: false
+  - id: duration
+    ask: 目标视频时长是多少秒？
+    type: choice
+    choices: [10, 15, 20, 30]
+    required: true
+    default: 10
+  - id: aspect_ratio
+    ask: 画幅比例用哪种？（Amazon 商品页通常 16:9）
+    type: choice
+    choices: [16:9, 9:16, 1:1]
+    required: true
+    default: 16:9
+  - id: resolution
+    ask: 分辨率要求？
+    type: choice
+    choices: [480p, 720p, 1080p]
+    required: false
+    default: 720p
+  - id: output_lang
+    ask: 画面文字与交付说明使用什么语言？
+    type: choice
+    choices: [中文, English]
+    required: false
+    default: 中文
+  - id: allow_human
+    ask: 是否允许出现人物、手部或真实使用动作？
+    type: boolean
+    required: false
+    default: false
+  - id: need_audio
+    ask: 是否需要生成音频？
+    type: boolean
+    required: false
+    default: false
+  - id: style_pref
+    ask: 对视觉风格有偏好吗？（如清爽产品摄影、暖调生活场景；没有则由平台按类目选择）
+    type: text
+    required: false
+  - id: must_show
+    ask: 有没有必须展示的内容？
+    type: text
+    required: false
+  - id: must_hide
+    ask: 有没有禁止展示的内容？（如竞品、价格、特定人群）
+    type: text
+    required: false
+```
 
 ## 执行流程
 
@@ -79,11 +150,11 @@ POST https://skills-platform-api-dev.zhiqingresearch.com/v1/files            逐
                                           返回 file_ref + 预签名 URL）
 PUT  {预签名 URL}                          上传原图（一次性地址，限时有效）
 POST https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/analysis     输入分析：素材覆盖+事实表+
-                                                    提示词草稿（202 + analysis_id，
-                                                    此处计费）
+                                                    提示词草稿+素材不足时自动补齐
+                                                    （202 + analysis_id，此处计费）
 GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/analysis/{analysis_id}   轮询直到 completed / failed
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation            缺失视角补图（仅素材不足时；
-                                                    202 + generation_id）
+POST https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation            定向补图：拒绝自动补齐图后的
+                                                    重生成（可选；202 + generation_id）
 GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation/{generation_id}       轮询直到 completed / failed
 POST https://skills-platform-api-dev.zhiqingresearch.com/v1/video/generation            视频生成（202 + generation_id）
 GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/video/generation/{generation_id}       轮询直到 completed / failed
@@ -93,9 +164,11 @@ GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc
 
 ### 四个确认门（会话内逐一执行，任何一门不得跳过）
 
-1. **素材确认门**：向用户逐张展示原图并转述素材检查摘要（可用/不可用
-   及原因、已覆盖与缺失视角）。确认图不足 5 张或关键视角缺失时，先
-   建议用户补充真实拍摄图；用户同意使用 AI 补图才调用补图能力。AI
+1. **素材确认门**：向用户逐张展示素材——真实图与平台自动补齐图（标注
+   AI 生成）分开列出，并转述素材检查摘要（可用/不可用及原因、已覆盖
+   与缺失视角）。素材不足时平台已在输入分析中自动补齐至生成质量需要
+   的程度（不按张数设卡）；真实拍摄图效果通常更好，欢迎用户随时补充
+   替换，但不作前置要求。AI
    补充图必须明确标注"AI 生成"，逐张请用户确认；用户拒绝时，把用户
    指出的可观察错误（如"接口数量错误"）**原样**作为 `feedback`、连同
    `retry_of` 重新提交——不得自行改写、概括或组装补图提示词。**未获
@@ -113,8 +186,9 @@ GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc
 
 ### 本 skill 特有的执行要点
 
-- **计费透明**：各能力独立按次计费（输入分析、补图、视频生成、质检
-  单价不同，视频生成最贵）。提交第一个计费动作前，向用户说明全程
+- **计费透明**：各能力独立按次计费（输入分析、视频生成、质检；输入
+  分析已含素材自动补齐、不另收费，拒绝自动补齐图后的定向重试按补图
+  单价另计，视频生成最贵）。提交第一个计费动作前，向用户说明全程
   大致费用构成，由用户确认开始；
 - **上传预检**：登记前确认每张图可读、扩展名与大小符合物料要求；
 - **轮询节奏**：补图 ≥3 秒/次，分析与质检 ≥5 秒/次，视频生成 ≥10
@@ -137,7 +211,24 @@ GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc
 
 ## 交付
 
-交付说明与话术见 `deliverables.md`（渲染安装包时会并入本文）。
+按各能力端点查询结果的返回，向用户交付：
+
+1. **成品**：商品广告视频（mp4，短时效下载链接 24 小时有效，过期凭
+   generation_id 重取）。配套交付**过程记录**：已确认的商品事实表、
+   已批准的视频提示词（增强模式含分镜表）、素材清单（区分真实图与
+   AI 补充图）、质检报告与返修记录。能下载时下载到工作区供用户直接
+   取用；不能则转述链接。
+2. **执行摘要**：本片使用了哪些已确认卖点、哪些部分由模型生成、
+   通过了几轮质检返修、以及平台标注的已知限制；附各能力实际用量与
+   预估费用（不含账户折扣，最终以平台计费为准）。
+3. **标记含义**：`ai_generated` 的素材为 AI 生成补充视角（交付时说明
+   哪些镜头参考了它们）；事实表中的冲突项与"不允许进入广告"项代表
+   证据矛盾或合规风险，建议人工复核后再用于其他渠道；质检问题按
+   阻断/较高/较低分级，阻断级问题未解决前不应上架使用。
+4. **未解决项（issues）**：平台返回的 issues 与质检 problems 逐条
+   转述（时间段、问题类型、建议处理），只转述结论，不猜测平台内部
+   规则；返修超限被平台建议降级时，如实转述降级建议与可选方案
+   （补拍真实素材后重新发起）。
 
 ## 出错处理
 

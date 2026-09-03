@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v1.1.1 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v1.1.2 target=claude-code -->
 
 # 视频理解与平台关键帧提取
 
@@ -118,12 +118,24 @@ Authorization: Bearer <ZQ_API_KEY>
   不要高频空转。
 
 `result.shots[].time` 是模型选择的原视频秒数，`frame_url` 是平台已按该时间点
-执行抽帧脚本得到的 JPEG 入口。不要再次在本地抽帧。
+执行抽帧脚本得到的 JPEG 入口，一律返回以 `/` 开头的**相对路径**（如
+`/v1/video/analysis/{analysis_id}/frames/frame-01.jpg`），不是完整 URL。
+不要再次在本地抽帧。
 
 ### 4. 下载关键帧
 
-对每个 `frame_url` 先向平台发带 KeyB 的 GET。平台校验归属后返回 HTTP 302，
-跳转到 CDN 或短期签名地址。跟随跨域跳转时不要把 KeyB 转发给目标存储域名。
+`frame_url` 是相对路径，不能直接交给 `curl`/`wget` 等下载工具（缺少主机名，
+必然失败）。必须先拼接平台根地址得到完整 URL 再请求：
+
+```text
+完整地址 = https://skills-platform-api-dev.zhiqingresearch.com + frame_url
+示例     = https://skills-platform-api-dev.zhiqingresearch.com/v1/video/analysis/analysis_abc123/frames/frame-01.jpg
+```
+
+拼接规则：`frame_url` 自带开头的 `/`；`API_BASE_URL` 末尾若带有 `/`，先去掉
+再拼接，避免路径出现 `//`。对每个完整地址发带 KeyB 的 GET。平台校验归属后
+返回 HTTP 302，跳转到 CDN 或短期签名地址；跟随跳转保存 JPEG 文件。跟随
+跨域跳转时不要把 KeyB 转发给目标存储域名。
 
 ## 交付
 
