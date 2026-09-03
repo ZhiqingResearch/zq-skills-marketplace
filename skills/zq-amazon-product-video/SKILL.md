@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 根据商品图片与资料生成与真实商品结构一致的 Amazon 商品广告视频：平台完成素材分析、缺失视角补图、多图参考视频生成与商品一致性质检，剧本在会话内组织素材、事实、提示词、成片四个确认门并渐进返修。当用户要为商品制作广告视频、商品页视频素材时使用。
 ---
-<!-- zq-skills: zq-amazon-product-video v0.1.3 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v0.2.0 target=claude-code -->
 
 # Amazon 商品广告视频生成
 
@@ -158,7 +158,9 @@ POST https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation    
 GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation/{generation_id}       轮询直到 completed / failed
 POST https://skills-platform-api-dev.zhiqingresearch.com/v1/video/generation            视频生成（202 + generation_id）
 GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/video/generation/{generation_id}       轮询直到 completed / failed
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc            双质检+返修建议（202 + qc_id）
+POST https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc            双质检+返修建议（可选：仅在
+                                                    成片确认门中用户选择质检时
+                                                    调用；202 + qc_id）
 GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc_id}    轮询直到 completed / failed
 ```
 
@@ -179,17 +181,20 @@ GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc
 3. **提示词确认门**：完整展示平台生成的视频提示词、采用的卖点和追加
    约束，请用户批准；用户提出修改时，把修改应用到提示词文本后**再次
    展示全文**请用户批准，确认无误才可作为 `prompt` 提交生成。
-4. **成片确认门**：展示成片下载链接与质检摘要。通过 → 交付；不通过
-   → 逐条转述问题与平台的返修建议，用户批准 `revised_prompt`（或
-   分镜草稿）后才以其**原文**回到生成步骤；同一返修链 ≥3 轮仍失败时，
-   转述平台给出的降级建议并停止自动重试。
+4. **成片确认门**：展示成片下载链接，**先请用户选择是否进行质检**
+   （质检按次计费，未经用户选择不发起）。用户选择质检 → 调用质检并
+   展示质检摘要：通过 → 交付；不通过 → 逐条转述问题与平台的返修建议，
+   用户批准 `revised_prompt`（或分镜草稿）后才以其**原文**回到生成
+   步骤（返修轮的再质检随返修自动进行），同一返修链 ≥3 轮仍失败时，
+   转述平台给出的降级建议并停止自动重试；用户选择不质检 → 直接交付，
+   并提醒成片未经平台质检、上架使用前建议自行核验。
 
 ### 本 skill 特有的执行要点
 
-- **计费透明**：各能力独立按次计费（输入分析、视频生成、质检；输入
-  分析已含素材自动补齐、不另收费，拒绝自动补齐图后的定向重试按补图
-  单价另计，视频生成最贵）。提交第一个计费动作前，向用户说明全程
-  大致费用构成，由用户确认开始；
+- **计费透明**：各能力独立按次计费（输入分析、视频生成、质检；质检
+  为可选能力，仅在用户选择时发起；输入分析已含素材自动补齐、不另
+  收费，拒绝自动补齐图后的定向重试按补图单价另计，视频生成最贵）。
+  提交第一个计费动作前，向用户说明全程大致费用构成，由用户确认开始；
 - **上传预检**：登记前确认每张图可读、扩展名与大小符合物料要求；
 - **轮询节奏**：补图 ≥3 秒/次，分析与质检 ≥5 秒/次，视频生成 ≥10
   秒/次；视频生成轮询约 20 分钟仍未完成时，告知用户稍后凭
@@ -216,18 +221,20 @@ GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc
 1. **成品**：商品广告视频（mp4，短时效下载链接 24 小时有效，过期凭
    generation_id 重取）。配套交付**过程记录**：已确认的商品事实表、
    已批准的视频提示词（增强模式含分镜表）、素材清单（区分真实图与
-   AI 补充图）、质检报告与返修记录。能下载时下载到工作区供用户直接
+   AI 补充图）、质检报告与返修记录（选择质检时；跳过质检的成片在
+   过程记录中注明"未经质检"）。能下载时下载到工作区供用户直接
    取用；不能则转述链接。
 2. **执行摘要**：本片使用了哪些已确认卖点、哪些部分由模型生成、
-   通过了几轮质检返修、以及平台标注的已知限制；附各能力实际用量与
-   预估费用（不含账户折扣，最终以平台计费为准）。
+   通过了几轮质检返修（跳过质检则注明"未经质检"）、以及平台标注的
+   已知限制；附各能力实际用量与预估费用（不含账户折扣，最终以平台
+   计费为准）。
 3. **标记含义**：`ai_generated` 的素材为 AI 生成补充视角（交付时说明
    哪些镜头参考了它们）；事实表中的冲突项与"不允许进入广告"项代表
    证据矛盾或合规风险，建议人工复核后再用于其他渠道；质检问题按
    阻断/较高/较低分级，阻断级问题未解决前不应上架使用。
-4. **未解决项（issues）**：平台返回的 issues 与质检 problems 逐条
-   转述（时间段、问题类型、建议处理），只转述结论，不猜测平台内部
-   规则；返修超限被平台建议降级时，如实转述降级建议与可选方案
+4. **未解决项（issues）**：平台返回的 issues 与质检 problems（如有）
+   逐条转述（时间段、问题类型、建议处理），只转述结论，不猜测平台
+   内部规则；返修超限被平台建议降级时，如实转述降级建议与可选方案
    （补拍真实素材后重新发起）。
 
 ## 出错处理
