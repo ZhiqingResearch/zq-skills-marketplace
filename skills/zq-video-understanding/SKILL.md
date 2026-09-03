@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v1.1.2 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v1.1.3 target=claude-code -->
 
 # 视频理解与平台关键帧提取
 
@@ -28,8 +28,7 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
 2. 若未配置，提示用户向接入项目领取 KeyB，或使用 `zq-config` 完成配置；
    不得要求用户把 KeyA 或对象存储密钥交给你。
 3. 不回显完整 KeyB，不把它写入仓库、日志、命令参数或交付文件。
-4. 当前 Demo 没有独立余额查询端点。首次业务请求返回 401 时再引导用户更新
-   KeyB，不要调用不存在的 `/v1/account/balance`。
+4. KeyB 有效性由首次业务请求验证，返回 401 时再引导用户更新 KeyB。
 
 ## 你需要向用户收集的物料
 
