@@ -1,65 +1,51 @@
 ---
 name: zq-amazon-product-video
-description: 根据商品图片与资料生成与真实商品结构一致的 Amazon 商品广告视频：平台完成素材分析、缺失视角补图、多图参考视频生成与商品一致性质检，剧本在会话内组织素材、事实、提示词、成片四个确认门并渐进返修。当用户要为商品制作广告视频、商品页视频素材时使用。
+description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v0.2.0 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.0.1 target=claude-code -->
 
-# Amazon 商品广告视频生成
-
-把用户提供的商品图片与资料交给平台的分析、补图、生成与质检能力，
-产出与真实商品结构一致的商品广告视频。本剧本只负责收集物料、按
-序列调用能力端点、在会话内组织四个确认门和交付；素材审核、商品
-事实表、视频提示词与返修约束全部由平台生成，剧本不包含、也不得
-自行组装任何提示词与内部规则。
+# Amazon 商品广告视频
 
 ## 何时使用 / 何时不使用
 
-- 使用：用户为 Amazon（或类似电商）商品页制作广告视频——能提供商品
-  图片（至少 1 张，视角越全效果越好）与商品名称、卖点，并确定时长/画幅等
-  规格；
-- 不使用：只要本地剪辑/转码/压缩；对已有视频做理解分析或截图
-  （用 zq-video-understanding）；无商品实拍素材的纯创意视频。
+用于商品广告视频生成和基于质检结果的返修；纯剪辑、视频理解或 Listing 文案
+分别使用对应工具。本剧本对齐 MCP / Skills API MVP，服务是否已部署以项目方为准。
 
-## 首次使用引导：API key 配置（安装后第一次运行时必须先做）
+## API key 配置
 
-本 skill 调用平台能力并按次计费，**key 未配置前不得开始任何流程步骤、
-不得发起任何计费动作**。首次被加载或被调用时，先做以下检查：
+REST 使用当前用户 KeyB（通常 `zk-`，兼容旧 `sk_`）。优先读取安全注入的
+`ZQ_API_KEY` / `ZQ_API_BASE`，缺项再读取 `~/.config/zq-skills/credentials`，
+按首个 `=` 分割，不 source/eval。API origin 缺省用 `http://skills-platform-api-uat.zhiqingresearch.com`。
+先带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills`，200 的 `data`
+为技能数组；空数组也表示鉴权通过。未配置时引导 `zq-config`，不索取 KeyA，
+不回显 KeyB、不写入仓库或命令参数。MVP 没有余额查询接口。
 
-1. 读取 `~/.config/zq-skills/credentials` 中的 `ZQ_API_KEY`
-   （沙箱环境读不到本地文件，见第 4 条）。
-2. 未配置 → **先向用户原样输出下面的引导文案**，等用户完成配置并
-   明确继续后再开始流程：
+如已连接平台 MCP，可使用 `create_upload`、`analyze_product_video`、
+`get_product_video_analysis`、`generate_image`、`get_image_generation`、
+`generate_video`、`get_video_generation`、`qc_product_video`、`get_product_video_qc`。
+KeyB 只在 MCP 连接头中传入。模型任务创建工具的业务字段与 REST body 相同，另加
+`idempotency_key`，可加 `wait_seconds`（0–20 秒）；REST 请求不发送这两个 body 字段。
+`create_upload` 仅收 filename/content_type/size_bytes，不带这两个任务参数。
+MCP 模型任务返回顶层 analysis_id / generation_id / qc_id、status、result、issues；
+这些 ID 对应 REST 的任务 ID。MCP processing 表示仍在进行，failed/cancelled 是终态失败；调用错误读取 error_code，unknown 表示受理未知。
+选一个通道执行，不能因等待超时切通道重新创建。
 
-   > 【首次使用提示】本 skill 调用 zq-skills 平台能力，按次消耗积分，
-   > 使用前需配置 API key（约 1 分钟）：
-   > 1. 到 Skill 市场账号页领取 API key（`sk-` 或 `sk_` 开头）；
-   > 2. 桌面端：安装 `zq-config` skill 后对我说"配置 key"；或手动写入
-   >    `~/.config/zq-skills/credentials`（权限 600，一行
-   >    `ZQ_API_KEY=sk-...`）；
-   > 3. 网页/沙箱端：直接把 key 发给我，我在本次会话中使用（不会回显）。
-   > 配置完成后对我说"继续"。未配置前我不会开始流程，也不会产生扣费。
-
-3. 已配置 → 直接进入流程；KeyB 有效性由首个能力请求验证，返回 401 时
-   回到本节重新配置（见出错处理）。
-4. 沙箱环境（网页 agent 会话内，读不到本地文件）：key 由用户在会话中
-   提供一次，保存在会话内存中传给请求，禁止回显到输出。
-5. 任何情况下不得把 key 完整展示在对话中、写进代码或仓库。
-6. 更完整的配置/校验/轮换/删除，引导用户安装 `zq-config` skill。
+MCP 创建工具重放已终态任务时，可能只返回状态回执、`result=null` 和查询
+`next_action`。这不表示没有产物；按原任务 ID 调用对应查询工具取得结果或失败
+原因，不重新创建。只有查询详情后才能判断交付内容。
 
 ## 你需要向用户收集的物料
 
-| 物料 | 说明 | 必须 |
-| --- | --- | --- |
-| 商品图片 | jpg/jpeg/png/webp，单张 ≤10MB；至少 1 张、张数不限，尽量覆盖正面、两侧、背面/侧面、部件特写等关键视角（视角越全效果越好；不足时平台会在输入分析时自动补齐并标注 AI 生成，真实拍摄图可随时补充替换） | 是 |
-| 商品名称 | 用于识别商品与包装身份 | 是 |
-| 商品卖点 | 一条或多条，将进入画面表达 | 是 |
-| 商品类目 / 属性 | 可选；缺省由平台识别 | 否 |
-| 视频规格 | 时长（10/15/20/30 秒）、画幅（16:9/9:16/1:1）；分辨率、语言、音频等默认值见下方初始题集 | 是 |
+| 物料 | 要求 |
+| --- | --- |
+| 商品图片 | jpg/jpeg/png/webp，每张 1 字节至 20 MiB；输入分析接受 1–20 张 |
+| 商品名称、卖点 | 非空字符串；多条卖点合并成字符串 |
+| 类目、属性 | 可选字符串；未知就省略，不编造 |
+| 视频规格 | 时长 10/15/20/30 秒；画幅 16:9/9:16/1:1；其余见题集 |
 
-## 开始前：向用户提问（intake）
+## 开始前提问
 
-直连模式下没有服务端动态追问，按下面的初始题集问齐信息，以本题集
-为准，用户跳过的按默认值提交。转述问题保持原意，不要替用户作答。
+只补问缺失的必要信息；已提供的信息直接使用，选项无偏好时采用题集默认值。
 
 ```yaml
 # zq-amazon-product-video —— intake 初始题集
@@ -135,117 +121,126 @@ questions:
 
 ## 执行流程
 
-两条铁律：
+为每个能力创建请求生成独立的 8–128 字符 `Idempotency-Key`，保存该键、原完整
+body 和返回 ID。同一请求恢复使用原键原参数；已批准的新返修是新任务，使用新键。
+上传登记不保证幂等，不与分析/生成共用“全流程键”。
 
-1. 每次"提交任务"生成一次 `Idempotency-Key`（uuid）：同一任务的
-   登记与重试**复用同一个 key**（重放返回首次结果，不会重复扣费）；
-   开始新任务才换新 key；
-2. 严格按下列序列调用，不自创步骤、不编造参数。
+MVP 默认拒绝创建模型任务。仅服务端显式启用 operator-funded 且项目允许时可
+执行，响应 `billed={state:"not_charged",mode:"operator-funded"}`；这表示运营方
+承担模型成本。不得承诺每步固定积分、余额冻结或“免费无成本”。用户已要求制作
+视频且材料与下列确认完成后继续执行。
 
-调用序列（均带 `Authorization: Bearer <ZQ_API_KEY>`，直连通道）：
+### 1. 上传
 
-```
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/files            逐张登记商品图片
-                                          （skill_id=zq-amazon-product-video；
-                                          返回 file_ref + 预签名 URL）
-PUT  {预签名 URL}                          上传原图（一次性地址，限时有效）
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/analysis     输入分析：素材覆盖+事实表+
-                                                    提示词草稿+素材不足时自动补齐
-                                                    （202 + analysis_id，此处计费）
-GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/analysis/{analysis_id}   轮询直到 completed / failed
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation            定向补图：拒绝自动补齐图后的
-                                                    重生成（可选；202 + generation_id）
-GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/image/generation/{generation_id}       轮询直到 completed / failed
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/video/generation            视频生成（202 + generation_id）
-GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/video/generation/{generation_id}       轮询直到 completed / failed
-POST https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc            双质检+返修建议（可选：仅在
-                                                    成片确认门中用户选择质检时
-                                                    调用；202 + qc_id）
-GET  https://skills-platform-api-dev.zhiqingresearch.com/v1/product-video/qc/{qc_id}    轮询直到 completed / failed
+逐张读取真实文件元数据，不估算大小：
+
+```http
+POST http://skills-platform-api-uat.zhiqingresearch.com/v1/files
+Authorization: Bearer <KeyB>
+Content-Type: application/json
+
+{"filename":"front.jpg","content_type":"image/jpeg","size_bytes":845210}
 ```
 
-### 四个确认门（会话内逐一执行，任何一门不得跳过）
+HTTP 201 返回 `file_ref`、`upload.method`、`upload.url`、`upload.headers` 和有效期。
+按返回头向 `upload.url` PUT 原文件，在有效期内完成；PUT 不带 KeyB，不改签名参数，
+不上传 multipart，也不另调 complete。不要提交 `skill_id`。
 
-1. **素材确认门**：向用户逐张展示素材——真实图与平台自动补齐图（标注
-   AI 生成）分开列出，并转述素材检查摘要（可用/不可用及原因、已覆盖
-   与缺失视角）。素材不足时平台已在输入分析中自动补齐至生成质量需要
-   的程度（不按张数设卡）；真实拍摄图效果通常更好，欢迎用户随时补充
-   替换，但不作前置要求。AI
-   补充图必须明确标注"AI 生成"，逐张请用户确认；用户拒绝时，把用户
-   指出的可观察错误（如"接口数量错误"）**原样**作为 `feedback`、连同
-   `retry_of` 重新提交——不得自行改写、概括或组装补图提示词。**未获
-   用户确认的图片不得计入生成用的 file_refs。**
-2. **事实确认门**：精简转述商品事实表（重点标出冲突项与不允许进入
-   广告的高风险宣称），请用户批准、修改或删除；用户修改原样记录，
-   不替用户补写或取舍。
-3. **提示词确认门**：完整展示平台生成的视频提示词、采用的卖点和追加
-   约束，请用户批准；用户提出修改时，把修改应用到提示词文本后**再次
-   展示全文**请用户批准，确认无误才可作为 `prompt` 提交生成。
-4. **成片确认门**：展示成片下载链接，**先请用户选择是否进行质检**
-   （质检按次计费，未经用户选择不发起）。用户选择质检 → 调用质检并
-   展示质检摘要：通过 → 交付；不通过 → 逐条转述问题与平台的返修建议，
-   用户批准 `revised_prompt`（或分镜草稿）后才以其**原文**回到生成
-   步骤（返修轮的再质检随返修自动进行），同一返修链 ≥3 轮仍失败时，
-   转述平台给出的降级建议并停止自动重试；用户选择不质检 → 直接交付，
-   并提醒成片未经平台质检、上架使用前建议自行核验。
+### 2. 输入分析
 
-### 本 skill 特有的执行要点
+`POST http://skills-platform-api-uat.zhiqingresearch.com/v1/product-video/analysis` 提交：
 
-- **计费透明**：各能力独立按次计费（输入分析、视频生成、质检；质检
-  为可选能力，仅在用户选择时发起；输入分析已含素材自动补齐、不另
-  收费，拒绝自动补齐图后的定向重试按补图单价另计，视频生成最贵）。
-  提交第一个计费动作前，向用户说明全程大致费用构成，由用户确认开始；
-- **上传预检**：登记前确认每张图可读、扩展名与大小符合物料要求；
-- **轮询节奏**：补图 ≥3 秒/次，分析与质检 ≥5 秒/次，视频生成 ≥10
-  秒/次；视频生成轮询约 20 分钟仍未完成时，告知用户稍后凭
-  generation_id 查询，不要空转；
-- **任务不可中止**：已受理的异步任务无法取消，计费以平台结算为准；
-  用户要求停止时，停止提交新任务并说明；
-- **返修不换目标**：返修只针对失败镜头对应的约束与提示词（平台已
-  生成建议），不要在无失败证据时主动堆叠新要求，也不要无限重复
-  同一个失败请求。
+- `file_refs`：1–20 项，已上传 file_ref 或 HTTPS 图片 URL；
+- `product_name`、`selling_points`、`duration_seconds`、`aspect_ratio` 为必填；
+- 可选 `category`、`attributes`、`target_market`、`style_pref`、`allow_human`、
+  `must_show`、`must_hide`、`resolution`、`output_lang`、`need_audio`。
 
-### 结果的后处理（执行模式自检，按顺序判断）
+题集 `duration` 映射到 `duration_seconds` 数字；布尔值用 JSON boolean。
+HTTP 202 返回 `analysis_id`，以
+`GET http://skills-platform-api-uat.zhiqingresearch.com/v1/product-video/analysis/{analysisId}` 查询，路径填该 ID。
+结果使用 `result.asset_coverage`、`result.product_facts`、`result.video_prompt.prompt` 字符串（video_prompt 本身是对象）。
 
-本 skill 无胶水脚本，交付物即平台产物：
+### 3. 素材、事实与提示词确认
 
-1. 能下载文件（本机或会话沙箱均可出网）→ 把成片与过程记录下载到
-   工作区供用户直接取用；
-2. 不能 → 向用户转述结果中的短时效下载链接（24 小时有效，过期凭
-   对应任务 id 重取）。
+1. 展示真实图及平台补充图，标明 AI 生成，逐张确认。生成视频需要**恰好 5 张不同的
+   已确认参考图**；从素材中选择 5 张，不复制同一引用凑数。少于 5 张时请补充或
+   使用平台补图结果。拒绝补充图时以用户原始意见作为 `feedback`，保留平台给出的
+   提示词与引用；不得猜测内部补图提示词或不存在的 `retry_of`。
+2. 展示商品事实、冲突和高风险宣称，使用用户确认的事实表。
+3. 完整展示 `result.video_prompt.prompt` 草稿；修改后展示最终版本，获用户确认后用于生成。
+   可选补图端点为 `POST /v1/image/generation`（1–10 项 `file_refs`、非空 `prompt`，
+   可选 `output_format`、`retry_of`、`feedback`），查询 `/v1/image/generation/{generationId}`。
+
+### 4. 生成与质检
+
+`POST http://skills-platform-api-uat.zhiqingresearch.com/v1/video/generation` body 为：
+
+```json
+{
+  "file_refs": ["<确认图1>", "<确认图2>", "<确认图3>", "<确认图4>", "<确认图5>"],
+  "prompt": "<批准的提示词原文>",
+  "duration_seconds": 10,
+  "aspect_ratio": "16:9",
+  "resolution": "720p",
+  "with_audio": false
+}
+```
+
+允许分辨率 480p/720p/1080p，实际支持及降级以结果 `issues` 为准。
+HTTP 202 返回 `generation_id`；GET `/v1/video/generation/{generationId}` 查询。
+成片生成后先展示视频。质检为可选能力：用户已要求质检则继续；否则请用户选择。
+用户不选择质检时直接交付，并标明“未经平台质检”。以下重上传、质检和返修
+只在用户选择质检后执行，不能默认创建额外模型任务。
+
+先检查 `result.video_file_ref` 的类型：当前网关通常返回 HTTPS 视频 URL。
+若要完成技术质检，下载该成片并读取准确文件元数据；不超过 **64 MiB** 时通过
+`POST /v1/files` + PUT 重新上传，用本次登记返回的 `file_ref` 作为质检视频引用。
+保留真实扩展名/MIME，不重编码或修改文件。64 MiB 是技术检查上限，低于通用
+视频上传的 150 MiB 上限。下载或重上传无法完成、或文件超限时，可以用原 HTTPS
+URL 做一致性评估，但必须注明技术检测不可判定。
+
+提交 `POST /v1/product-video/qc`：
+`video_file_ref`、1–30 项 `reference_file_refs`、已确认 `product_facts` 对象、
+生成所用 `video_prompt`；可带 `storyboard` 对象及规格基准
+`duration_seconds/aspect_ratio/resolution/with_audio`。
+HTTP 202 返回 `qc_id`；GET `/v1/product-video/qc/{qcId}` 查询。
+
+展示成片与平台质检结论。`technical_facts_unavailable` 表示缺少可检测的本地
+视频事实；它不证明成片质量差，不能据此重生成。先补上上述成片上传，或交付时
+明确技术未评估。实际画面质量未通过时，转述问题及
+`result.revision_suggestions.revised_prompt` 字符串（可选分镜在同级 storyboard_draft），
+用户批准后创建新的生成和质检任务。最多 3 轮返修，仍失败则停止并说明未解决项。
+任务执行失败、超时或中断不等同于质量未通过，不触发自动返修。
+
+### 5. 查询与下载
+
+分析/质检 ≥5 秒、补图 ≥3 秒、视频 ≥10 秒查询一次。`queued/processing` 等待，
+`completed` 读取结果，`failed/cancelled` 停止。约 10 分钟无结果时保存任务 ID，
+交代可继续查询；MVP 默认任务期限 15 分钟，超时并不撤销已发给上游的调用。
+用户要求停止时停止新提交；没有取消接口。
+
+链接按结果实际提供的 URL 和有效期使用，不承诺固定 24 小时或可刷新。下载到
+工作区后交付文件；下载失败保留 ID，查询原任务，不自动重新生成。
 
 ## 交付
 
-按各能力端点查询结果的返回，向用户交付：
+交付平台生成的视频、已确认素材与事实表、批准的提示词、质检报告和返修记录。
+用户未选择质检时标明“未经平台质检”，不编造质检报告。
+标明 AI 生成素材，转述 `issues` 和未解决问题，不将质检结果描述为平台上架保证。
 
-1. **成品**：商品广告视频（mp4，短时效下载链接 24 小时有效，过期凭
-   generation_id 重取）。配套交付**过程记录**：已确认的商品事实表、
-   已批准的视频提示词（增强模式含分镜表）、素材清单（区分真实图与
-   AI 补充图）、质检报告与返修记录（选择质检时；跳过质检的成片在
-   过程记录中注明"未经质检"）。能下载时下载到工作区供用户直接
-   取用；不能则转述链接。
-2. **执行摘要**：本片使用了哪些已确认卖点、哪些部分由模型生成、
-   通过了几轮质检返修（跳过质检则注明"未经质检"）、以及平台标注的
-   已知限制；附各能力实际用量与预估费用（不含账户折扣，最终以平台
-   计费为准）。
-3. **标记含义**：`ai_generated` 的素材为 AI 生成补充视角（交付时说明
-   哪些镜头参考了它们）；事实表中的冲突项与"不允许进入广告"项代表
-   证据矛盾或合规风险，建议人工复核后再用于其他渠道；质检问题按
-   阻断/较高/较低分级，阻断级问题未解决前不应上架使用。
-4. **未解决项（issues）**：平台返回的 issues 与质检 problems（如有）
-   逐条转述（时间段、问题类型、建议处理），只转述结论，不猜测平台
-   内部规则；返修超限被平台建议降级时，如实转述降级建议与可选方案
-   （补拍真实素材后重新发起）。
+保留分析、生成、质检任务 ID 便于恢复查询。下载链接有效期以服务返回为准；
+费用字段缺失不代表零成本，不用历史积分单价或 token 推算账单。
 
 ## 出错处理
 
 | 情况 | 处理 |
 | --- | --- |
-| 401 | key 无效或过期 → 回到"首次使用引导"重新配置 |
-| 402 | 积分不足 → 指引用户到市场充值后重试（可告知还差哪一步） |
-| 404 | 任务 id 不存在或已过期 → 产物链接过期时凭 id 重取；任务本身过期则重新提交 |
-| 409 | 幂等重放/状态冲突 → 沿用同一 Idempotency-Key 的首次结果，不要换 key 重发 |
-| 422 | 输入不合法（如图片不符物料要求、枚举值越界）→ 把平台返回的字段级提示原样转述，不解释规则来源 |
-| 5xx / 网络 | 间隔重试 ≤2 次（写请求有幂等键保护），仍失败告知稍后再试 |
-
-除错误提示外，不要把原始 JSON 响应整段丢给用户，转述要点即可。
+| 401 | 重新检查 KeyB、API origin 和项目状态 |
+| 404 | 核对任务/素材 ID 与所属用户，不据此新建任务 |
+| 409 | 核对原幂等键及原完整 body，不自动换键 |
+| 422 | 按字段提示修正类型、数量、上传状态和参数 |
+| 429 | 总并发或 KeyB 达上限；等待后以原键原参数有限重试 |
+| billing_unavailable / skill_unavailable | 停止并联系项目方，不充值或更改项目属性绕过 |
+| admission_timeout / submission_unknown / POST 5xx 或网络异常 | 受理结果未知；有 ID 先查询，无 ID 保存原键与完整 body，仅用户明确恢复时原样重放 |
+| task_timeout / task_interrupted | 查询原任务，禁止自动换键重跑；不能声称上游未执行或无费用 |
+| GET 5xx / 网络异常 | 间隔重试最多 2 次，仍失败保留 ID |

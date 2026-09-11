@@ -1,84 +1,48 @@
 ---
 name: zq-update
-version: 0.1.2
-description: 检查已安装的 zq-skills 系列 skill 是否有新版本：扫描本地安装的版本标记，与公共分发仓库最新清单比对，并指引通过 Skill 市场或 skills CLI 更新重装。当用户想检查 skill 更新、升级已安装的 skill，或付费 skill 报 409 版本过旧时使用。
+version: 1.0.0
+description: 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较。
 ---
-<!-- zq-skills: zq-update v0.1.2 target=free -->
+<!-- zq-skills: zq-update v1.0.0 target=free -->
 
-# zq-update — skill 更新检查助手
+# zq-update — 客户端技能更新
 
-检查已安装的 zq-skills 系列 skill（付费编排型 + 免费）是否有新版本，
-并指引更新。免费 skill，本地扫描 + 比对公共分发仓库清单，全程不需要
-API key、不请求平台 API、不产生计费。
+扫描本产品技能目录内的机器可读标记，汇总 id、版本、target：
 
-## 何时使用 / 何时不使用
-
-- 使用：用户想检查已装 skill 是否有新版；付费 skill 报 409（版本过旧，
-  低于 min_client_version 被平台拒绝）；用户想知道更新了什么；
-- 不使用：配置 API key（→ `zq-config`）；安装全新 skill（→ Skill 市场）；
-  skill 执行报错排查（与本 skill 无关，看对应剧本的出错处理章节）。
-
-## 第一步：扫描已安装版本
-
-已安装的编排型 skill 文件头部带机器可读版本标记：
-
-```
+```text
 <!-- zq-skills: <skill-id> v<版本> target=<目标产品> -->
 ```
 
-桌面端：在本产品存放 skill 的目录里搜标记（路径按产品适配，如
-`~/.claude/skills/`、Codex/Cursor 各自的 skill 目录）：
+如目录不可访问或网页端只有粘贴剧本，说明无法扫描；从用户提供的安装包或
+市场安装页确认当前版本。不能仅按目录名断定版本。
+
+## 查询公共发布清单
+
+无需 KeyB，读取公共分发仓库的机器可读清单：
 
 ```sh
-grep -rn -E '<!-- zq-skills: [a-z0-9-]+ v[0-9.]+' <skill 目录> 2>/dev/null
+curl --fail --silent --show-error https://raw.githubusercontent.com/ZhiqingResearch/zq-skills-marketplace/main/.release.json
 ```
 
-网页端（粘贴型，无本地目录）：向用户说明当前会话内没有可扫描的安装
-目录，直接进入"更新方式"按市场最新版重新粘贴。
+读取 skills[].id、skills[].version 与来源 release。网络失败最多重试一次，
+再用同一公共仓库 README 的版本表或市场发布页核对，不改用运行时 API。
 
-汇总列出：skill id、已装版本、目标产品（付费为 claude-code/codex/
-cursor/paste，免费为 free）。免费 skill（zq-config 等）同样带版本
-标记，一并纳入检查。
+## 比较版本
 
-## 第二步：查询最新版本（可选，更准确）
+以市场正式发布清单或已校验安装包的版本为依据；预发包仅在用户选择预发环境
+时使用。读不到发布源就说明“尚未确认是否最新”，不要编造新版本。
 
-从公共分发仓库拉取机器可读的最新版本清单——不需要 API key，不请求
-平台 API，不产生任何计费：
+MVP 的 `GET /api/v1/skills` / MCP `list_skills` 返回运行时能力目录和 inputSchema，
+不提供客户端安装版本、min_client_version 或安装包。MVP 没有旧版 `/v1/skills`
+及 `/v1/skills/{id}/client` 分发接口；不要把运行时 slug 与本地技能 id 强行匹配。
+409 表示幂等冲突等请求问题，不能单凭状态码判定客户端过旧。
 
-```sh
-curl -s https://raw.githubusercontent.com/ZhiqingResearch/zq-skills-marketplace/main/.release.json
-```
+## 更新
 
-读取 `skills[].id` 与 `skills[].version`，与第一步的本地扫描结果比对。
-该快照由发版流水线自动同步（`release` 字段为来源发版号），与市场发布
-同源。raw 地址不可达时降级：解析同一仓库 README 的 Skills 版本表，或
-让用户打开 `https://github.com/ZhiqingResearch/zq-skills-marketplace`
-目视比对。
+用户请求升级时，从其选择的市场版本下载安装，保留凭据文件。替换前比较新旧
+版本并保留可恢复副本，安装后重新读取版本标记确认；不要通过执行模型任务验证更新。
+本地开发可由仓库维护者用安装脚本指定 API origin 与目标目录重新渲染，已有目录用
+`--force` 更新。脚本属于源码仓库，不假设它存在于用户已安装的技能中。
 
-## 第三步：比对与更新指引
-
-| 比对结果 | 处理 |
-| --- | --- |
-| 已装 = 最新 | 告知用户已是最新版，无需操作 |
-| 已装 < 最新 | 指引到 Skill 市场该 skill 页重新一键安装（覆盖旧版）；说明新版版本号 |
-| 平台返回 409 场景 | 解释原因：剧本版本低于该 skill 的 min_client_version，平台拒绝执行是防止旧剧本配新平台出错；市场重装后即可解除 |
-| 清单里没有该 skill | 可能已下线或更名：引导用户到市场确认 |
-
-更新方式（当前阶段，按用户环境选一）：
-
-1. **市场重装（推荐，全端通用）**：市场 skill 页选同一目标产品重新
-   一键安装，新文件覆盖旧版（同目录同名覆盖）；
-2. **skills CLI（桌面端）**：`npx skills add ZhiqingResearch/zq-skills-marketplace@<skill-id>`
-   重新安装单个 skill 覆盖旧版（与市场同源，都来自分发仓库）；
-3. 网页端：市场复制最新粘贴块，替换旧提示词保存。
-
-更新完成后建议重新触发一次该 skill 验证正常（首次运行仍会做 key
-检查，属正常流程）。
-
-## 出错处理
-
-| 情况 | 处理 |
-| --- | --- |
-| raw 清单拉取失败 | 重试一次；仍失败降级用 README 版本表或仓库页面目视比对 |
-| 清单 JSON 解析失败 | 分发仓库同步中或格式变化；改看 README 版本表 |
-| 扫不到版本标记 | 该 skill 可能不是 zq-skills 系列；如实告知 |
+网页端使用市场最新粘贴块替换旧提示词；版本无法比对时明确说明。
+需要设置 KeyB 时转到 `zq-config`。

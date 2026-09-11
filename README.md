@@ -22,12 +22,13 @@ npx skills add ZhiqingResearch/zq-skills-marketplace@zq-video-understanding
 
 | skill | 版本 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| [zq-amazon-product-video](skills/zq-amazon-product-video/) | 0.2.0 | 付费（per-capability，60 积分） | 根据商品图片与资料生成与真实商品结构一致的 Amazon 商品广告视频：平台完成素材分析、缺失视角补图、多图参考视频生成与商品一致性质检，剧本在会话内组织素材、事实、提示词、成片四个确认门并渐进返修。当用户要为商品制作广告视频、商品页视频素材时使用。 |
-| [zq-config](skills/zq-config/) | 0.2.0 | 免费 | 配置、校验、轮换或删除 zq-skills 平台 API key（写入与本地校验凭据文件），并提供沙箱环境的一次性 key 使用指引。当用户要设置、检查、更换 zq-skills API key，或排查 key 问题时使用。 |
-| [zq-update](skills/zq-update/) | 0.1.2 | 免费 | 检查已安装的 zq-skills 系列 skill 是否有新版本：扫描本地安装的版本标记，与公共分发仓库最新清单比对，并指引通过 Skill 市场或 skills CLI 更新重装。当用户想检查 skill 更新、升级已安装的 skill，或付费 skill 报 409 版本过旧时使用。 |
-| [zq-video-understanding](skills/zq-video-understanding/) | 1.1.3 | 付费（per-capability，50 积分） | 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。 |
+| [zq-amazon-product-video](skills/zq-amazon-product-video/) | 1.0.1 | 平台能力（运营方承担成本） | 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。 |
+| [zq-config](skills/zq-config/) | 1.0.1 | 免费 | 当用户首次配置、检查、更换或删除 zq-skills 平台 KeyB，或排查 API 凭据问题时使用。支持本地 REST 凭据和 MCP 连接鉴权。 |
+| [zq-listing](skills/zq-listing/) | 0.1.1 | 平台能力（运营方承担成本） | 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。 |
+| [zq-update](skills/zq-update/) | 1.0.0 | 免费 | 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较。 |
+| [zq-video-understanding](skills/zq-video-understanding/) | 2.0.1 | 平台能力（运营方承担成本） | 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。 |
 
-付费 skill 的执行与计费在 zq-skills 平台云端完成；安装后先在 agent 对话里配置平台 API key（直接说"帮我配置 zq-skills API key"，`zq-config` 会引导完成）。
+平台能力在云端执行；收费与可用性以对应部署为准，operator-funded 表示运营方承担成本。安装后先在 agent 对话里配置平台 KeyB（直接说"帮我配置 zq-skills API key"，`zq-config` 会引导完成）。
 
 ---
-同步自 release `20260903-1338-f4e432b`（commit `f4e432b`，2026-09-03T13:38:36.077Z）。
+同步自 release `20260911-0855-baaf538`（commit `baaf538`，2026-09-11T08:55:39.904Z）。

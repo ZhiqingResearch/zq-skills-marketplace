@@ -1,79 +1,73 @@
 ---
 name: zq-config
-version: 0.2.0
-description: 配置、校验、轮换或删除 zq-skills 平台 API key（写入与本地校验凭据文件），并提供沙箱环境的一次性 key 使用指引。当用户要设置、检查、更换 zq-skills API key，或排查 key 问题时使用。
+version: 1.0.1
+description: 当用户首次配置、检查、更换或删除 zq-skills 平台 KeyB，或排查 API 凭据问题时使用。支持本地 REST 凭据和 MCP 连接鉴权。
 ---
-<!-- zq-skills: zq-config v0.2.0 target=free -->
+<!-- zq-skills: zq-config v1.0.1 target=free -->
 
 # zq-config — API key 配置助手
 
-管理 zq-skills 平台的 API key 与本地凭据。所有付费 skill 运行前都依赖
-这份凭据，本 skill 是标准配置入口；免费 skill，本地执行，不产生计费。
+免费配置助手；检查凭据只做只读发现，不创建模型任务。本版面向 MCP / Skills API MVP。
 
-## 何时使用 / 何时不使用
+## 凭据与地址
 
-- 使用：首次配置 key、检查本地凭据、更换或吊销旧 key、删除本地
-  凭据、了解沙箱环境怎么用 key；
-- 不使用：与 key 无关的问题（如 skill 执行失败的原因排查、模板处理）。
+- 使用接入项目为当前用户签发的 KeyB（通常 `zk-` 开头，兼容旧 `sk_`）；
+  不按前缀自行判定有效性，以服务端验证为准。KeyA 仅由项目方管理。
+- REST：读取安全注入的 `ZQ_API_KEY` / `ZQ_API_BASE` 环境变量，缺项再读
+  `~/.config/zq-skills/credentials`。逐行按第一个 `=` 分割；不要 source/eval 文件。
+- 地址是 API origin，不带 `/api`、`/v1`、`/mcp` 后缀。环境或文件中未指定时，
+  本安装包地址为 `http://skills-platform-api-uat.zhiqingresearch.com`；若只是占位符，向用户索取部署地址。
+  按用户或安装包指定的协议使用地址，不自行改写 HTTP/HTTPS；连接前确认地址属于用户配置的服务。
+- MCP：KeyB 由客户端安全的连接设置放在 `/mcp` 的 `Authorization: Bearer <KeyB>`；
+  平台 API 地址与 MCP 服务地址可能不同。不得把 KeyB 填进模型工具参数。
 
-## 本地凭据
+凭据文件示意（实际值由用户安全输入，不把真实 KeyB 写进对话、代码或命令参数）：
 
-- 位置：`~/.config/zq-skills/credentials`（权限 600，属主本人）；
-- 格式：
-
-```
-ZQ_API_KEY=sk-xxxxxxxxxxxxxxxx
-ZQ_API_BASE=https://skills-platform-api-dev.zhiqingresearch.com
-```
-
-- `ZQ_API_BASE` 可选；默认地址以 Skill 市场安装页展示的官方地址为准；
-- 本 skill 与所有付费 skill 都从这里读取；文件不存在时进入"配置流程"。
-
-## 功能
-
-### 1. status（检查）
-
-读取凭据文件 → 展示脱敏 key（如 `sk-****abcd`）与 `ZQ_API_BASE`。
-纯本地检查，不请求平台 API；key 有效性由首个能力请求验证
-（付费 skill 报 401 时进入 rotate）。文件缺失或格式错误 → 引导走 set。
-
-### 2. set（配置 / 首次设置）
-
-1. 引导用户到 **Skill 市场账号页**领取 API key（`sk-` 或 `sk_` 开头）；
-2. 写入凭据文件：
-
-```sh
-mkdir -p ~/.config/zq-skills
-printf 'ZQ_API_KEY=%s\n' "<key>" > ~/.config/zq-skills/credentials
-chmod 600 ~/.config/zq-skills/credentials
+```text
+ZQ_API_KEY=<用户 KeyB>
+ZQ_API_BASE=<实际 API origin>
 ```
 
-3. 执行 status 确认文件内容与权限正确；key 有效性由首个能力请求验证。
+## set / rotate
 
-### 3. rotate（轮换）
+1. 从用户配置或项目方提供的信息确定 KeyB 和 API origin；缺少密钥时引导在本地
+   受控输入或客户端凭据设置中填写，不要求粘贴到公开对话。
+2. 创建 `~/.config/zq-skills`，目录权限 700，凭据文件权限 600。更新指定字段时
+   保留已有地址和其他字段；以临时文件加原子替换写入，不输出完整内容。
+3. 执行 status。轮换由项目方签发新 KeyB；同手机号重新签发会使旧 KeyB 失效。
+   本助手只替换本地/连接凭据，不自行持有 KeyA 或调用签发接口。
 
-1. 引导用户在市场账号页**生成新 key 并吊销旧 key**；
-2. 按 set 流程覆盖写入 → status 确认；
-3. 提醒：怀疑 key 泄露（例如曾在网页会话中粘贴过）时应立即轮换。
+## status
 
-### 4. remove（删除）
+REST 携带 `Authorization: Bearer <KeyB>` 调用：
 
-向用户确认后删除 `~/.config/zq-skills/credentials`，并提醒已装的
-付费 skill 在重新配置前无法使用。
+```http
+GET http://skills-platform-api-uat.zhiqingresearch.com/api/v1/skills
+```
 
-## 沙箱环境（网页 agent）指引
+HTTP 200 的 `data` 是技能数组；空数组也表示本次鉴权通过，不代表没有权限。
+只展示脱敏 key、地址、连接结果。可见技能不保证模型任务已启用。
+MCP 使用 `list_skills` 做同样检查。不要同时尝试另一通道来绕过权限或重复执行。
 
-- 沙箱读不到本地文件：key 由用户在会话中提供**一次**，保存在会话
-  内存/环境变量中供本次任务使用，会话结束即失效；
-- 粘贴进会话的 key 会留在第三方对话记录里——重要任务完成后建议到
-  市场账号页轮换；
-- 任何情况下不得把完整 key 回显到对话输出、写入代码或仓库。
+MVP 没有余额查询端点；不能据发现结果声称有积分、可扣费或免费使用模型。
+模型创建默认返回 `billing_unavailable`；只有服务端显式启用 operator-funded
+且项目允许时才受理，成本由运营方承担。配置助手不修改服务端计费属性。
+
+## remove
+
+用户要求删除本地凭据时删除该文件；只要求删除某个字段时保留其他字段。
+这不会吊销服务端 KeyB，吊销需由项目方处理。删除后需要重新配置才可调用。
+
+## 无本地凭据文件的环境
+
+优先使用客户端的安全连接/会话密钥设置。临时环境变量仅用于当前会话；
+不要把真实 KeyB 写入项目、日志或交付物，也不宣称对话记录会自动删除。
 
 ## 出错处理
 
 | 情况 | 处理 |
 | --- | --- |
-| 付费 skill 报 401 | key 无效或已吊销 → 走 rotate 流程 |
-| 付费 skill 报 403 | key 被禁用 → 指引联系市场客服 |
-| 付费 skill 网络错误 | 检查凭据文件中 ZQ_API_BASE 是否写错；稍后重试 |
-| 文件权限异常 | 重新 chmod 600；仍异常则 remove 后重走 set |
+| 401 | 检查 KeyB、项目和用户状态；必要时由项目方重新签发 |
+| 404 | 检查 API origin 和部署版本，不猜测余额或安装接口 |
+| 5xx / 网络 | 只读 status 可间隔重试最多两次；仍失败说明连接尚未验证 |
+| 文件权限异常 | 修正为目录 700、文件 600；不输出文件内容 |
