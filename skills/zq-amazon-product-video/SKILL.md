@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.0.1 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.1.0 target=claude-code -->
 
 # Amazon 商品广告视频
 
@@ -125,10 +125,13 @@ questions:
 body 和返回 ID。同一请求恢复使用原键原参数；已批准的新返修是新任务，使用新键。
 上传登记不保证幂等，不与分析/生成共用“全流程键”。
 
-MVP 默认拒绝创建模型任务。仅服务端显式启用 operator-funded 且项目允许时可
-执行，响应 `billed={state:"not_charged",mode:"operator-funded"}`；这表示运营方
-承担模型成本。不得承诺每步固定积分、余额冻结或“免费无成本”。用户已要求制作
-视频且材料与下列确认完成后继续执行。
+MVP 默认拒绝创建模型任务（`billing_unavailable`）。收费模式以平台响应为准：
+`operator-funded` 项目允许时执行，响应 `billed={state:"not_charged"}`，运营方
+承担模型成本；`selleros` 模式按网关实际 CNY 费用逐笔经 SellerOS 扣积分，受理
+`billed={state:"pending"}`，扣费确认前查询返回 503 `billing_pending` /
+`billing_blocked` 不交付产物——稍后重查原任务即可，不换键重新生成。终态查询
+透传 `billed` 实扣回执。不得承诺每步固定积分、余额冻结或"免费无成本"。
+用户已要求制作视频且材料与下列确认完成后继续执行。
 
 ### 1. 上传
 
@@ -241,6 +244,7 @@ HTTP 202 返回 `qc_id`；GET `/v1/product-video/qc/{qcId}` 查询。
 | 422 | 按字段提示修正类型、数量、上传状态和参数 |
 | 429 | 总并发或 KeyB 达上限；等待后以原键原参数有限重试 |
 | billing_unavailable / skill_unavailable | 停止并联系项目方，不充值或更改项目属性绕过 |
+| billing_pending / billing_blocked（查询时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 5xx 或网络异常 | 受理结果未知；有 ID 先查询，无 ID 保存原键与完整 body，仅用户明确恢复时原样重放 |
 | task_timeout / task_interrupted | 查询原任务，禁止自动换键重跑；不能声称上游未执行或无费用 |
 | GET 5xx / 网络异常 | 间隔重试最多 2 次，仍失败保留 ID |

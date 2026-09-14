@@ -2,7 +2,7 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.1.1 target=claude-code -->
+<!-- zq-skills: zq-listing v0.2.0 target=claude-code -->
 
 # 多平台 Listing 生成与评分
 
@@ -84,8 +84,12 @@ questions:
 完整 JSON 和任务 ID。省略字段与显式填入默认值不等价，恢复时不要补默认值或
 重写输入。两项 POST body 都不超过 64 KiB；POST/GET 均不带查询参数。
 
-本版对应候选 MVP。默认拒绝模型创建；只有服务端启用 operator-funded 且项目
-允许时才可执行，运营方承担成本，不据此承诺固定积分或零成本。无余额查询接口。
+本版对应候选 MVP。收费模式以平台响应为准：默认（disabled）拒绝模型创建；
+`operator-funded` 项目允许时执行、运营方承担成本；`selleros` 模式按网关实际
+CNY 费用逐笔经 SellerOS 扣积分（受理 `billed={state:"pending"}`，扣费确认前
+查询返回 503 `billing_pending` / `billing_blocked` 不交付产物——稍后重查原
+任务即可，不换键重新生成；终态查询透传 `billed` 实扣回执）。不据此承诺固定
+积分或零成本。无余额查询接口。
 
 ### 生成
 
@@ -182,6 +186,7 @@ assessmentCoverage 与 rubricVersion；保留未评估项和覆盖率，不能�
 | 413 / 422 | 按 error.fieldErrors 的 path/code 修正体积或字段；不解释私有规则 |
 | 429 | 等待容量释放后原键原参数有限重试，不并行换键 |
 | billing_unavailable / skill_unavailable | 联系项目方，停止创建，不修改项目计费属性绕过 |
+| billing_pending / billing_blocked（查询时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
 | TASK_TIMEOUT / TASK_INTERRUPTED / MODEL_OUTPUT_INVALID / TASK_FAILED | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本 |
 | delivery_unavailable / GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留原任务 ID，不能重新生成替代查询 |

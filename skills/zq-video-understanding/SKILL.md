@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v2.0.1 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.1.0 target=claude-code -->
 
 # 视频理解与平台关键帧提取
 
@@ -118,9 +118,12 @@ Content-Type: application/json
 }
 ```
 
-HTTP 202 返回 `analysis_id`、`status` 和 `billed`。MVP 中
-`billed={state:"not_charged",mode:"operator-funded"}` 表示未扣用户积分、运营方承担成本。
-服务端默认禁用模型创建，返回 `billing_unavailable` 时停止并联系项目方，不能要求充值或修改计费属性绕过。
+HTTP 202 返回 `analysis_id`、`status` 和 `billed`。收费模式以平台响应为准：
+`billed={state:"not_charged"}` 表示运营方承担成本、未扣费；`selleros` 模式
+按网关实际 CNY 费用逐笔经 SellerOS 扣积分（受理 `state:"pending"`）。
+服务端默认禁用模型创建，返回 `billing_unavailable` 时停止并联系项目方，
+不能要求充值或修改计费属性绕过；扣费确认前查询与关键帧下载可能返回
+503 `billing_pending` / `billing_blocked`——稍后重查原任务即可，不换键重新生成。
 
 ### 3. 轮询并获取结果
 
@@ -174,6 +177,7 @@ Authorization: Bearer <ZQ_API_KEY>
 | 422 | 按 `field_errors` 修正文件类型、大小、上传状态或分析参数 |
 | 429 | 总并发或当前 KeyB 达上限；等待后原键原参数有限重试，不并行换键 |
 | 503 billing_unavailable | 模型任务未启用或项目要求扣费；停止并联系项目方 |
+| 503 billing_pending / billing_blocked（查询或关键帧下载时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务/重取关键帧；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 受理结果未知；有 analysis_id 则查询，没有则保存原键和原完整参数，用户明确要求恢复后才原样重放 |
 | task_timeout / task_interrupted | 停止自动执行；查询原任务，失败不证明上游未执行或无成本，不能自动换键重跑 |
 | GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留任务 ID |
