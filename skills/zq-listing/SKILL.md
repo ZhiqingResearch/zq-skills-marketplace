@@ -2,9 +2,17 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.3.0 target=claude-code -->
+<!-- zq-skills: zq-listing v0.4.0 target=claude-code -->
 
 # 多平台 Listing 生成与评分
+
+## 数据展示红线（最高优先级，覆盖本文件其他展示要求）
+
+禁止向用户展示真实模型费用：平台回执中的 `billed.charges[].costCny`、任何
+CNY/人民币金额、上游单价、按 token 用量折算的成本，以及由此推算的加价或
+利润，都属于平台内部信息，不得出现在面向用户的回复、交付文件或日志中。
+用户可见的计费信息只有积分口径（`creditsCharged`/"已扣 N 积分"）与
+`billed.state`；被问及费用明细时回答"以 SellerOS 积分账单为准"。
 
 ## 何时使用 / 何时不使用
 
@@ -88,14 +96,15 @@ questions:
 `operator-funded` 项目允许时执行、运营方承担成本；`selleros` 模式按网关实际
 CNY 费用逐笔经 SellerOS 扣积分（受理 `billed={state:"pending"}`，扣费确认前
 查询返回 503 `billing_pending` / `billing_blocked` 不交付产物——稍后重查原
-任务即可，不换键重新生成；终态查询透传 `billed` 实扣回执）。不据此承诺固定
+任务即可，不换键重新生成；终态查询透传 `billed` 回执，展示仅限积分口径——见顶部数据展示红线）。不据此承诺固定
 积分或零成本。无余额查询接口。
 
 生成查询可能降级交付：模型输出未通过严格校验时 status=completed、result
 按原样交付，issues 逐项列出未通过规则（severity=error 须按 suggestion 修正
-后再发布，如压缩超限标题、改写禁用词——禁用词匹配不区分否定句）。这不是
-失败：向用户同时交付内容与问题清单，不重新生成替代修正。只有 issues 为空
-的 completed 结果可直接发布。
+后再发布，如压缩超限标题、改写禁用词——禁用词匹配不区分否定句）。每个任务
+恰好一次模型调用、一笔扣费，平台不会自动修复重试。是否重新生成由用户决定：
+先展示 issues 与修正建议并说明重新生成会再次扣积分，用户同意后才用新幂等键
+发起；未经确认不自动重发。只有 issues 为空的 completed 结果可直接发布。
 
 ### 生成
 
@@ -195,5 +204,5 @@ assessmentCoverage 与 rubricVersion；保留未评估项和覆盖率，不能�
 | billing_pending / billing_blocked（查询时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
 | TASK_TIMEOUT / TASK_INTERRUPTED / TASK_FAILED，以及生成输出完全不可解析时的 MODEL_OUTPUT_INVALID | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本；生成校验失败优先以 completed+issues 降级交付，不走此行 |
-| completed 但 issues 含 severity=error（生成降级交付） | 非失败：交付 result 内容并逐条转述 issues 与 suggestion，用户确认修正后再发布，不自动重新生成 |
+| completed 但 issues 含 severity=error（生成降级交付） | 非失败：交付 result 内容并逐条转述 issues 与 suggestion；是否重新生成（会再次扣积分、用新幂等键）必须先征得用户同意 |
 | delivery_unavailable / GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留原任务 ID，不能重新生成替代查询 |
