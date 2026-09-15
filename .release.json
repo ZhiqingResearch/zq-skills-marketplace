@@ -1,16 +1,16 @@
 {
   "channel": "release",
-  "release": "20260915-0300-ee91963",
-  "git_commit": "ee91963",
-  "source_generated_at": "2026-09-15T03:00:35.592Z",
-  "synced_at": "2026-09-15T03:00:39.527Z",
+  "release": "20260915-0428-8c129c0",
+  "git_commit": "8c129c0",
+  "source_generated_at": "2026-09-15T04:28:01.539Z",
+  "synced_at": "2026-09-15T04:28:04.803Z",
   "canonical_target": "claude-code",
   "skills": [
     {
       "id": "zq-amazon-product-video",
-      "version": "1.2.1",
+      "version": "1.3.0",
       "type": "paid",
-      "source": "packages/zq-amazon-product-video/1.2.1/claude-code/SKILL.md"
+      "source": "packages/zq-amazon-product-video/1.3.0/claude-code/SKILL.md"
     },
     {
       "id": "zq-config",

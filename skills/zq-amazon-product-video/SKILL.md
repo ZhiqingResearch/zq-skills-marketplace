@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.2.1 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.3.0 target=claude-code -->
 
 # Amazon 商品广告视频
 
@@ -162,16 +162,16 @@ HTTP 201 返回 `file_ref`、`upload.method`、`upload.url`、`upload.headers` �
 题集 `duration` 映射到 `duration_seconds` 数字；布尔值用 JSON boolean。
 HTTP 202 返回 `analysis_id`，以
 `GET http://skills-platform-api-uat.zhiqingresearch.com/v1/product-video/analysis/{analysisId}` 查询，路径填该 ID。
-结果使用 `result.asset_coverage`、`result.product_facts`、`result.video_prompt.prompt` 字符串（video_prompt 本身是对象）。
+结果使用 `result.asset_coverage`、`result.product_facts` 与创意要点 `result.video_prompt`（类目/策略摘要/核心卖点/追加约束；平台提示词全文由服务端持有，响应不返回）。
 
-### 3. 素材、事实与提示词确认
+### 3. 素材、事实与创意要点确认
 
 1. 展示真实图及平台补充图，标明 AI 生成，逐张确认。生成视频需要**恰好 5 张不同的
    已确认参考图**；从素材中选择 5 张，不复制同一引用凑数。少于 5 张时请补充或
    使用平台补图结果。拒绝补充图时以用户原始意见作为 `feedback`，保留平台给出的
    提示词与引用；不得猜测内部补图提示词或不存在的 `retry_of`。
 2. 展示商品事实、冲突和高风险宣称，使用用户确认的事实表。
-3. 完整展示 `result.video_prompt.prompt` 草稿；修改后展示最终版本，获用户确认后用于生成。
+3. 展示创意要点（类目、策略摘要、核心卖点、追加约束）并获用户确认；不展示、不索要提示词文本，平台提示词由服务端持有。
    可选补图端点为 `POST /v1/image/generation`（1–10 项 `file_refs`、非空 `prompt`，
    可选 `output_format`、`retry_of`、`feedback`），查询 `/v1/image/generation/{generationId}`。
 
@@ -182,7 +182,7 @@ HTTP 202 返回 `analysis_id`，以
 ```json
 {
   "file_refs": ["<确认图1>", "<确认图2>", "<确认图3>", "<确认图4>", "<确认图5>"],
-  "prompt": "<批准的提示词原文>",
+  "analysis_id": "<分析任务 ID，服务端使用平台持有的提示词>",
   "duration_seconds": 10,
   "aspect_ratio": "16:9",
   "resolution": "720p",
@@ -205,7 +205,7 @@ URL 做一致性评估，但必须注明技术检测不可判定。
 
 提交 `POST /v1/product-video/qc`：
 `video_file_ref`、1–30 项 `reference_file_refs`、已确认 `product_facts` 对象、
-生成所用 `video_prompt`；可带 `storyboard` 对象及规格基准
+生成所用提示词（传 `generation_id`，服务端按该次生成实际使用的提示词作为基准）；可带 `storyboard` 对象及规格基准
 `duration_seconds/aspect_ratio/resolution/with_audio`。
 HTTP 202 返回 `qc_id`；GET `/v1/product-video/qc/{qcId}` 查询。
 
@@ -228,7 +228,7 @@ HTTP 202 返回 `qc_id`；GET `/v1/product-video/qc/{qcId}` 查询。
 
 ## 交付
 
-交付平台生成的视频、已确认素材与事实表、批准的提示词、质检报告和返修记录。
+交付平台生成的视频、已确认素材与事实表、质检报告和返修记录（提示词由平台服务端持有，不随交付物出现）。
 用户未选择质检时标明“未经平台质检”，不编造质检报告。
 标明 AI 生成素材，转述 `issues` 和未解决问题，不将质检结果描述为平台上架保证。
 
