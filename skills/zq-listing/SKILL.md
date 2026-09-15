@@ -2,7 +2,7 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.4.0 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.0 target=claude-code -->
 
 # 多平台 Listing 生成与评分
 
@@ -13,6 +13,8 @@ CNY/人民币金额、上游单价、按 token 用量折算的成本，以及由
 利润，都属于平台内部信息，不得出现在面向用户的回复、交付文件或日志中。
 用户可见的计费信息只有积分口径（`creditsCharged`/"已扣 N 积分"）与
 `billed.state`；被问及费用明细时回答"以 SellerOS 积分账单为准"。
+平台 KeyB 响应自 2026-09-15 起已不返回成本金额（服务端控制）；本红线
+作为对历史响应与异常残留的第二道防线继续生效。
 
 ## 何时使用 / 何时不使用
 

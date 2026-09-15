@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.1.1 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.2.0 target=claude-code -->
 
 # Amazon 商品广告视频
 
@@ -13,6 +13,8 @@ CNY/人民币金额、上游单价、按 token 用量折算的成本，以及由
 利润，都属于平台内部信息，不得出现在面向用户的回复、交付文件或日志中。
 用户可见的计费信息只有积分口径（`creditsCharged`/"已扣 N 积分"）与
 `billed.state`；被问及费用明细时回答"以 SellerOS 积分账单为准"。
+平台 KeyB 响应自 2026-09-15 起已不返回成本金额（服务端控制）；本红线
+作为对历史响应与异常残留的第二道防线继续生效。
 
 ## 何时使用 / 何时不使用
 
