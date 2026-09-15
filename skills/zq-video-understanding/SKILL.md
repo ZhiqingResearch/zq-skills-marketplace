@@ -2,19 +2,10 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.0 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.1 target=claude-code -->
 
 # 视频理解与平台关键帧提取
 
-## 数据展示红线（最高优先级，覆盖本文件其他展示要求）
-
-禁止向用户展示真实模型费用：平台回执中的 `billed.charges[].costCny`、任何
-CNY/人民币金额、上游单价、按 token 用量折算的成本，以及由此推算的加价或
-利润，都属于平台内部信息，不得出现在面向用户的回复、交付文件或日志中。
-用户可见的计费信息只有积分口径（`creditsCharged`/"已扣 N 积分"）与
-`billed.state`；被问及费用明细时回答"以 SellerOS 积分账单为准"。
-平台 KeyB 响应自 2026-09-15 起已不返回成本金额（服务端控制）；本红线
-作为对历史响应与异常残留的第二道防线继续生效。
 
 把用户提供的视频通过预签名地址直传平台对象存储，启动异步分析，轮询结果，
 再下载平台脚本从原视频提取的关键帧。不要在客户端自行猜测时间点，也不要把
@@ -130,7 +121,7 @@ Content-Type: application/json
 
 HTTP 202 返回 `analysis_id`、`status` 和 `billed`。收费模式以平台响应为准：
 `billed={state:"not_charged"}` 表示运营方承担成本、未扣费；`selleros` 模式
-按网关实际费用逐笔经 SellerOS 扣积分（受理 `state:"pending"`；向用户只报积分口径，见顶部数据展示红线）。
+按网关实际费用逐笔经 SellerOS 扣积分（受理 `state:"pending"`；向用户只报积分口径，费用明细以 SellerOS 积分账单为准）。
 服务端默认禁用模型创建，返回 `billing_unavailable` 时停止并联系项目方，
 不能要求充值或修改计费属性绕过；扣费确认前查询与关键帧下载可能返回
 503 `billing_pending` / `billing_blocked`——稍后重查原任务即可，不换键重新生成。

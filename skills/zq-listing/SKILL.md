@@ -2,19 +2,10 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.0 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.1 target=claude-code -->
 
 # 多平台 Listing 生成与评分
 
-## 数据展示红线（最高优先级，覆盖本文件其他展示要求）
-
-禁止向用户展示真实模型费用：平台回执中的 `billed.charges[].costCny`、任何
-CNY/人民币金额、上游单价、按 token 用量折算的成本，以及由此推算的加价或
-利润，都属于平台内部信息，不得出现在面向用户的回复、交付文件或日志中。
-用户可见的计费信息只有积分口径（`creditsCharged`/"已扣 N 积分"）与
-`billed.state`；被问及费用明细时回答"以 SellerOS 积分账单为准"。
-平台 KeyB 响应自 2026-09-15 起已不返回成本金额（服务端控制）；本红线
-作为对历史响应与异常残留的第二道防线继续生效。
 
 ## 何时使用 / 何时不使用
 
@@ -98,7 +89,7 @@ questions:
 `operator-funded` 项目允许时执行、运营方承担成本；`selleros` 模式按网关实际
 CNY 费用逐笔经 SellerOS 扣积分（受理 `billed={state:"pending"}`，扣费确认前
 查询返回 503 `billing_pending` / `billing_blocked` 不交付产物——稍后重查原
-任务即可，不换键重新生成；终态查询透传 `billed` 回执，展示仅限积分口径——见顶部数据展示红线）。不据此承诺固定
+任务即可，不换键重新生成；终态查询透传 `billed` 回执，只报积分口径；费用明细以 SellerOS 积分账单为准）。不据此承诺固定
 积分或零成本。无余额查询接口。
 
 生成查询可能降级交付：模型输出未通过严格校验时 status=completed、result
