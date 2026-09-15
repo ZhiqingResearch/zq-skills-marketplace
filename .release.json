@@ -1,16 +1,16 @@
 {
   "channel": "release",
-  "release": "20260915-0428-8c129c0",
-  "git_commit": "8c129c0",
-  "source_generated_at": "2026-09-15T04:28:01.539Z",
-  "synced_at": "2026-09-15T04:28:04.803Z",
+  "release": "20260915-0842-423ee23",
+  "git_commit": "423ee23",
+  "source_generated_at": "2026-09-15T08:42:35.164Z",
+  "synced_at": "2026-09-15T08:42:37.975Z",
   "canonical_target": "claude-code",
   "skills": [
     {
       "id": "zq-amazon-product-video",
-      "version": "1.3.0",
+      "version": "1.3.2",
       "type": "paid",
-      "source": "packages/zq-amazon-product-video/1.3.0/claude-code/SKILL.md"
+      "source": "packages/zq-amazon-product-video/1.3.2/claude-code/SKILL.md"
     },
     {
       "id": "zq-config",
@@ -20,9 +20,9 @@
     },
     {
       "id": "zq-listing",
-      "version": "0.5.1",
+      "version": "0.5.3",
       "type": "paid",
-      "source": "packages/zq-listing/0.5.1/claude-code/SKILL.md"
+      "source": "packages/zq-listing/0.5.3/claude-code/SKILL.md"
     },
     {
       "id": "zq-update",
@@ -32,9 +32,9 @@
     },
     {
       "id": "zq-video-understanding",
-      "version": "2.2.1",
+      "version": "2.2.3",
       "type": "paid",
-      "source": "packages/zq-video-understanding/2.2.1/claude-code/SKILL.md"
+      "source": "packages/zq-video-understanding/2.2.3/claude-code/SKILL.md"
     }
   ]
 }

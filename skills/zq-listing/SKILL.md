@@ -2,12 +2,25 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.1 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.3 target=claude-code -->
 
 # 多平台 Listing 生成与评分
 
 
 ## 何时使用 / 何时不使用
+## 开始时先概述（本技能每次会话首次被调用时）
+
+先用两三句话向用户概述本技能能做什么与计费方式，再列出本次操作需要用户
+提供的信息清单（标明必填/可选；用户已给出的不重复询问）。清单齐备后才
+开始执行；用户问"这个技能是干嘛的"时也按此概述回答。
+
+概述示例：本技能为 Amazon/Walmart/eBay/Ozon/Wildberries/TikTok 十个市场生成
+商品 Listing 文案，或对已有 Listing 独立评分并给修改建议；按次经 SellerOS
+扣积分。本次需要：① 动作（生成 / 评分 / 生成后评分，必填）；② 目标市场
+（必填）；③ 生成需商品名称、类目和可验证事实/属性（必填），评分需现有
+Listing 文案（必填）；可选：品牌、关键词数据、参考稿、必需/禁用词约束、
+反馈语言（默认中文）。
+
 
 生成指定市场商品文案，或独立评估用户现有 Listing。生成不会自动评分；只要求
 评分时直接评估现有稿，包括缺字段的草稿。用户要求生成并评估时按两项任务执行。
@@ -171,7 +184,7 @@ HTTP 202 的 `data.id` 为 `lscore_` 前缀；GET `/api/v1/listings/scores/{id}`
 
 ### 查询
 
-每隔至少 5 秒查询，`data.status=queued/processing` 等待，completed 才读 result；
+自动轮询：`queued/processing` 时继续查询，不结束回合、不需用户催促，终态或约 3 分钟后才向用户汇报结果/失败/进度与任务 ID。completed 才读 result；
 failed 读取 `data.error` 并停止。未完成时 result 为 null。
 约 10 分钟未结束则保存 ID，告知可继续查询，不新建任务。REST 不加 wait 参数。
 MVP 默认任务期限 15 分钟；超时、中断或客户端停止等待不证明上游没执行。
