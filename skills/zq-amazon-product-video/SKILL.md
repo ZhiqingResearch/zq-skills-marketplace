@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.3.3 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.3.4 target=claude-code -->
 
 # Amazon 商品广告视频
 
@@ -28,10 +28,13 @@ description: 当用户提供商品图片、名称和卖点，希望制作 Amazon
 
 REST 使用当前用户 KeyB（通常 `zk-`，兼容旧 `sk_`）。优先读取安全注入的
 `ZQ_API_KEY` / `ZQ_API_BASE`，缺项再读取 `~/.config/zq-skills/credentials`，
-按首个 `=` 分割，不 source/eval。API origin 缺省用 `http://skills-platform-api-uat.zhiqingresearch.com`。
-首个请求前自检：生效 API 地址（环境变量、凭据文件或安装包缺省）含
-`skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建任务；
-向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包。
+按首个 `=` 分割，不 source/eval。API origin 缺省用 `https://skills-platform-api.zhiqingresearch.com`。
+首个请求前自检生效 API 地址（环境变量、凭据文件或安装包缺省）：与本包
+缺省正式地址 `https://skills-platform-api.zhiqingresearch.com` 同 host（协议 http/https 不敏感）直接放行；
+含 `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建
+任务，向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包；
+其余地址（如 `skills-platform-api-uat.zhiqingresearch.com` 预发环境）先向用户
+确认是否为其指定的服务，确认后本次会话沿用，不自动改写。
 先带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills`，200 的 `data`
 为技能数组；空数组也表示鉴权通过。未配置时引导 `zq-config`，不索取 KeyA，
 不回显 KeyB、不写入仓库或命令参数。MVP 没有余额查询接口。
@@ -154,7 +157,7 @@ MVP 默认拒绝创建模型任务（`billing_unavailable`）。收费模式以�
 逐张读取真实文件元数据，不估算大小：
 
 ```http
-POST http://skills-platform-api-uat.zhiqingresearch.com/v1/files
+POST https://skills-platform-api.zhiqingresearch.com/v1/files
 Authorization: Bearer <KeyB>
 Content-Type: application/json
 
@@ -167,7 +170,7 @@ HTTP 201 返回 `file_ref`、`upload.method`、`upload.url`、`upload.headers` �
 
 ### 2. 输入分析
 
-`POST http://skills-platform-api-uat.zhiqingresearch.com/v1/product-video/analysis` 提交：
+`POST https://skills-platform-api.zhiqingresearch.com/v1/product-video/analysis` 提交：
 
 - `file_refs`：1–20 项，已上传 file_ref 或 HTTPS 图片 URL；
 - `product_name`、`selling_points`、`duration_seconds`、`aspect_ratio` 为必填；
@@ -176,7 +179,7 @@ HTTP 201 返回 `file_ref`、`upload.method`、`upload.url`、`upload.headers` �
 
 题集 `duration` 映射到 `duration_seconds` 数字；布尔值用 JSON boolean。
 HTTP 202 返回 `analysis_id`，以
-`GET http://skills-platform-api-uat.zhiqingresearch.com/v1/product-video/analysis/{analysisId}` 查询，路径填该 ID。
+`GET https://skills-platform-api.zhiqingresearch.com/v1/product-video/analysis/{analysisId}` 查询，路径填该 ID。
 结果使用 `result.asset_coverage`、`result.product_facts` 与创意要点 `result.video_prompt`（类目/策略摘要/核心卖点/追加约束；平台提示词全文由服务端持有，响应不返回）。
 
 ### 3. 素材、事实与创意要点确认
@@ -192,7 +195,7 @@ HTTP 202 返回 `analysis_id`，以
 
 ### 4. 生成与质检
 
-`POST http://skills-platform-api-uat.zhiqingresearch.com/v1/video/generation` body 为：
+`POST https://skills-platform-api.zhiqingresearch.com/v1/video/generation` body 为：
 
 ```json
 {

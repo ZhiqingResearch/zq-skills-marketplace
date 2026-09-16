@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.4 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.5 target=claude-code -->
 
 # 视频理解与平台关键帧提取
 
@@ -40,13 +40,16 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
 2. 若未配置，提示用户向接入项目领取 KeyB，或使用 `zq-config` 完成配置；
    不得要求用户把 KeyA 或对象存储密钥交给你。
 3. 不回显完整 KeyB，不把它写入仓库、日志、命令参数或交付文件。
-4. REST 先用 `GET http://skills-platform-api-uat.zhiqingresearch.com/api/v1/skills` 验证，HTTP 200 的 `data` 是能力数组；
+4. REST 先用 `GET https://skills-platform-api.zhiqingresearch.com/api/v1/skills` 验证，HTTP 200 的 `data` 是能力数组；
    即使为空也表示此次鉴权成功。MVP 没有余额查询端点。
 5. API 地址优先取环境变量 `ZQ_API_BASE`，再取凭据文件；最后使用安装包中地址。
    地址为 origin，不加 `/api` 或 `/v1` 后缀；凭据按首个 `=` 分割，不 source/eval。
-6. 首个请求前自检：生效 API 地址（环境变量、凭据文件或安装包缺省）含
-   `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建任务；
-   向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包。
+6. 首个请求前自检生效 API 地址（环境变量、凭据文件或安装包缺省）：与本包
+   缺省正式地址 `https://skills-platform-api.zhiqingresearch.com` 同 host（协议 http/https 不敏感）直接放行；
+   含 `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建
+   任务，向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包；
+   其余地址（如 `skills-platform-api-uat.zhiqingresearch.com` 预发环境）先向
+   用户确认是否为其指定的服务，确认后本次会话沿用，不自动改写。
 
 MCP 创建工具重放已终态任务时，可能只返回状态回执、`result=null` 和查询
 `next_action`。这不表示没有产物；按原任务 ID 调用对应查询工具取得结果或失败
@@ -72,7 +75,7 @@ MCP 创建工具重放已终态任务时，可能只返回状态回执、`result
 
 ## 执行流程
 
-API 根地址使用 `http://skills-platform-api-uat.zhiqingresearch.com`。平台请求带 KeyB；预签名 PUT 请求绝不能
+API 根地址使用 `https://skills-platform-api.zhiqingresearch.com`。平台请求带 KeyB；预签名 PUT 请求绝不能
 携带 KeyB。为视频分析生成一个 8–128 字符的稳定 `Idempotency-Key`，网络
 恢复时必须复用原键和原完整请求，不能自动重发未知结果的 POST。
 
@@ -87,7 +90,7 @@ REST 与 MCP 二选一，不要切通道重复提交。MCP 参数的等待时间
 ### 1. 登记并直传视频
 
 ```http
-POST http://skills-platform-api-uat.zhiqingresearch.com/v1/files
+POST https://skills-platform-api.zhiqingresearch.com/v1/files
 Authorization: Bearer <ZQ_API_KEY>
 Content-Type: application/json
 
@@ -119,7 +122,7 @@ PUT 通常返回 200 或 204。必须原样使用平台返回的 URL 与请求�
 ### 2. 创建异步分析
 
 ```http
-POST http://skills-platform-api-uat.zhiqingresearch.com/v1/video/analysis
+POST https://skills-platform-api.zhiqingresearch.com/v1/video/analysis
 Authorization: Bearer <ZQ_API_KEY>
 Idempotency-Key: <本次分析稳定键>
 Content-Type: application/json
@@ -145,7 +148,7 @@ HTTP 202 返回 `analysis_id`、`status` 和 `billed`。收费模式以平台响
 自动轮询（每约 5 秒一次，不结束回合、不需用户催促，终态或约 3 分钟后汇报；视频分析可能需要数分钟）：
 
 ```http
-GET http://skills-platform-api-uat.zhiqingresearch.com/v1/video/analysis/{analysis_id}
+GET https://skills-platform-api.zhiqingresearch.com/v1/video/analysis/{analysis_id}
 Authorization: Bearer <ZQ_API_KEY>
 ```
 
@@ -166,8 +169,8 @@ Authorization: Bearer <ZQ_API_KEY>
 必然失败）。必须先拼接平台根地址得到完整 URL 再请求：
 
 ```text
-完整地址 = http://skills-platform-api-uat.zhiqingresearch.com + frame_url
-示例     = http://skills-platform-api-uat.zhiqingresearch.com/v1/video/analysis/analysis_abc123/frames/frame-01-0000-01-0.jpg
+完整地址 = https://skills-platform-api.zhiqingresearch.com + frame_url
+示例     = https://skills-platform-api.zhiqingresearch.com/v1/video/analysis/analysis_abc123/frames/frame-01-0000-01-0.jpg
 ```
 
 拼接规则：`frame_url` 自带开头的 `/`；`API_BASE_URL` 末尾若带有 `/`，先去掉

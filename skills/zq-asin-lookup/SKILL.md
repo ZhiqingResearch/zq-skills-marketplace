@@ -2,7 +2,7 @@
 name: zq-asin-lookup
 description: 当用户给出 Amazon ASIN 需要查询商品公开信息（标题、品牌、卖点、图片、价格、评分等），用于选品核对或作为后续 Listing、视频任务的商品事实来源时使用。
 ---
-<!-- zq-skills: zq-asin-lookup v0.1.1 target=claude-code -->
+<!-- zq-skills: zq-asin-lookup v0.1.2 target=claude-code -->
 
 # ASIN 商品信息查询
 
@@ -31,10 +31,13 @@ description: 当用户给出 Amazon ASIN 需要查询商品公开信息（标题
 使用项目为当前用户签发的 KeyB（通常 `zk-`，兼容旧 `sk_`）。REST 优先从安全
 环境变量 `ZQ_API_KEY` / `ZQ_API_BASE` 读取，缺项再读
 `~/.config/zq-skills/credentials`；按首个 `=` 分割，不 source/eval。
-API origin 缺省用 `http://skills-platform-api-uat.zhiqingresearch.com`，不另加 `/api` 或 `/v1` 后缀。
-首个请求前自检：生效 API 地址（环境变量、凭据文件或安装包缺省）含
-`skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建任务；
-向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包。
+API origin 缺省用 `https://skills-platform-api.zhiqingresearch.com`，不另加 `/api` 或 `/v1` 后缀。
+首个请求前自检生效 API 地址（环境变量、凭据文件或安装包缺省）：与本包
+缺省正式地址 `https://skills-platform-api.zhiqingresearch.com` 同 host（协议 http/https 不敏感）直接放行；
+含 `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建
+任务，向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包；
+其余地址（如 `skills-platform-api-uat.zhiqingresearch.com` 预发环境）先向用户
+确认是否为其指定的服务，确认后本次会话沿用，不自动改写。
 带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills` 可验证鉴权；
 200 的空 `data` 数组也有效。缺凭据引导 `zq-config`，不索取 KeyA，不回显 KeyB。
 
@@ -99,7 +102,7 @@ questions:
 ### 创建查询
 
 ```http
-POST http://skills-platform-api-uat.zhiqingresearch.com/api/v1/products/amazon
+POST https://skills-platform-api.zhiqingresearch.com/api/v1/products/amazon
 Authorization: Bearer <KeyB>
 Idempotency-Key: <稳定键>
 Content-Type: application/json

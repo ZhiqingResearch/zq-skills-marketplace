@@ -1,9 +1,9 @@
 ---
 name: zq-config
-version: 1.0.2
+version: 1.0.3
 description: 当用户首次配置、检查、更换或删除 zq-skills 平台 KeyB，或排查 API 凭据问题时使用。支持本地 REST 凭据和 MCP 连接鉴权。
 ---
-<!-- zq-skills: zq-config v1.0.2 target=free -->
+<!-- zq-skills: zq-config v1.0.3 target=free -->
 
 # zq-config — API key 配置助手
 
@@ -16,10 +16,13 @@ description: 当用户首次配置、检查、更换或删除 zq-skills 平台 K
 - REST：读取安全注入的 `ZQ_API_KEY` / `ZQ_API_BASE` 环境变量，缺项再读
   `~/.config/zq-skills/credentials`。逐行按第一个 `=` 分割；不要 source/eval 文件。
 - 地址是 API origin，不带 `/api`、`/v1`、`/mcp` 后缀。环境或文件中未指定时，
-  本安装包地址为 `http://skills-platform-api-uat.zhiqingresearch.com`；若只是占位符，向用户索取部署地址。
+  本安装包地址为 `https://skills-platform-api.zhiqingresearch.com`；若只是占位符，向用户索取部署地址。
   按用户或安装包指定的协议使用地址，不自行改写 HTTP/HTTPS；连接前确认地址属于用户配置的服务。
-- 地址含 `skills-platform-api-dev.zhiqingresearch.com` 时为 dev 测试环境：默认
-  改用正式地址；用户明确要求连 dev 才保留，并说明该环境无正式记录与计费。
+- 地址以本包缺省正式地址 `https://skills-platform-api.zhiqingresearch.com` 为标准：与之同 host（协议
+  http/https 不敏感）直接采用；含 `skills-platform-api-dev.zhiqingresearch.com`
+  属 dev 测试环境，默认改写为本包正式地址，用户明确要求连 dev 才保留并说明
+  该环境无正式记录与计费；其他地址（如
+  `skills-platform-api-uat.zhiqingresearch.com` 预发环境）先与用户确认再写入。
 - MCP：KeyB 由客户端安全的连接设置放在 `/mcp` 的 `Authorization: Bearer <KeyB>`；
   平台 API 地址与 MCP 服务地址可能不同。不得把 KeyB 填进模型工具参数。
 
@@ -34,7 +37,8 @@ ZQ_API_BASE=<实际 API origin>
 
 1. 从用户配置或项目方提供的信息确定 KeyB 和 API origin；缺少密钥时引导在本地
    受控输入或客户端凭据设置中填写，不要求粘贴到公开对话。写入前按
-   「凭据与地址」检查 origin：dev 测试地址默认换成正式地址再写。
+   「凭据与地址」以本包正式地址为标准检查 origin：dev 测试地址默认换成正式
+   地址再写，其他非缺省地址先与用户确认。
 2. 创建 `~/.config/zq-skills`，目录权限 700，凭据文件权限 600。更新指定字段时
    保留已有地址和其他字段；以临时文件加原子替换写入，不输出完整内容。
 3. 执行 status。轮换由项目方签发新 KeyB；同手机号重新签发会使旧 KeyB 失效。
@@ -45,7 +49,7 @@ ZQ_API_BASE=<实际 API origin>
 REST 携带 `Authorization: Bearer <KeyB>` 调用：
 
 ```http
-GET http://skills-platform-api-uat.zhiqingresearch.com/api/v1/skills
+GET https://skills-platform-api.zhiqingresearch.com/api/v1/skills
 ```
 
 HTTP 200 的 `data` 是技能数组；空数组也表示本次鉴权通过，不代表没有权限。
