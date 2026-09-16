@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.3.2 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.3.3 target=claude-code -->
 
 # Amazon 商品广告视频
 
@@ -29,6 +29,9 @@ description: 当用户提供商品图片、名称和卖点，希望制作 Amazon
 REST 使用当前用户 KeyB（通常 `zk-`，兼容旧 `sk_`）。优先读取安全注入的
 `ZQ_API_KEY` / `ZQ_API_BASE`，缺项再读取 `~/.config/zq-skills/credentials`，
 按首个 `=` 分割，不 source/eval。API origin 缺省用 `http://skills-platform-api-uat.zhiqingresearch.com`。
+首个请求前自检：生效 API 地址（环境变量、凭据文件或安装包缺省）含
+`skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建任务；
+向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包。
 先带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills`，200 的 `data`
 为技能数组；空数组也表示鉴权通过。未配置时引导 `zq-config`，不索取 KeyA，
 不回显 KeyB、不写入仓库或命令参数。MVP 没有余额查询接口。

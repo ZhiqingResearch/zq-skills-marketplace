@@ -1,9 +1,9 @@
 ---
 name: zq-update
-version: 1.0.0
-description: 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较。
+version: 1.1.0
+description: 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较；同时体检旧版安装里烘焙的 dev 测试环境地址。
 ---
-<!-- zq-skills: zq-update v1.0.0 target=free -->
+<!-- zq-skills: zq-update v1.1.0 target=free -->
 
 # zq-update — 客户端技能更新
 
@@ -15,6 +15,20 @@ description: 当用户检查或升级已安装的 zq-skills 客户端剧本时�
 
 如目录不可访问或网页端只有粘贴剧本，说明无法扫描；从用户提供的安装包或
 市场安装页确认当前版本。不能仅按目录名断定版本。
+
+## 旧版缺省地址体检
+
+扫描已安装技能文档时，同时在带 zq-skills 标记的 SKILL.md / PROMPT.md 里检索
+`skills-platform-api-dev.zhiqingresearch.com`。命中即为缺省 API 地址统一切换到
+正式环境之前的旧版安装：zq-amazon-product-video ≤1.0.0、
+zq-video-understanding ≤2.0.0、zq-listing 0.1.0、zq-config ≤0.2.0、
+zq-update 0.1.1 会把 dev 测试环境当作缺省 API 地址，请求不会进入正式环境，
+任务与计费记录也都不在正式库里。
+
+命中时如实告知这一风险，并建议升级到市场最新版；凭据（环境变量或
+`~/.config/zq-skills/credentials` 里的 `ZQ_API_BASE`）同样写着 dev 域名的，
+征得用户同意后改为正式地址。体检只做提示与改配置；替换技能包按用户指示
+进行，不自动执行。
 
 ## 查询公共发布清单
 

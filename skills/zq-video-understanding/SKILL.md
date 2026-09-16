@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.3 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.4 target=claude-code -->
 
 # 视频理解与平台关键帧提取
 
@@ -44,6 +44,9 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
    即使为空也表示此次鉴权成功。MVP 没有余额查询端点。
 5. API 地址优先取环境变量 `ZQ_API_BASE`，再取凭据文件；最后使用安装包中地址。
    地址为 origin，不加 `/api` 或 `/v1` 后缀；凭据按首个 `=` 分割，不 source/eval。
+6. 首个请求前自检：生效 API 地址（环境变量、凭据文件或安装包缺省）含
+   `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建任务；
+   向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包。
 
 MCP 创建工具重放已终态任务时，可能只返回状态回执、`result=null` 和查询
 `next_action`。这不表示没有产物；按原任务 ID 调用对应查询工具取得结果或失败
