@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.3.4 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.3.5 target=claude-code -->
 
 # Amazon 商品广告视频
 
@@ -17,8 +17,8 @@ description: 当用户提供商品图片、名称和卖点，希望制作 Amazon
 概述示例：本技能用商品图和卖点制作 Amazon 商品广告视频——先平台分析素材
 与事实，再生成视频，可做质检返修；每步按次经 SellerOS 扣积分。本次需要：
 ① 恰好 5 张不重复商品图（必填）；② 商品名称（必填）；③ 核心卖点（必填）；
-④ 时长 10/15/20/30 秒与画面比例 16:9/9:16/1:1（必填）；可选：分辨率、是否
-音频、风格偏好、目标市场。
+④ 时长 4–30 的整数秒与画面比例 16:9/9:16/1:1（必填）；可选：分辨率、风格偏
+好、目标市场。默认生成有声音的视频，需要静音时说明即可。
 
 
 用于商品广告视频生成和基于质检结果的返修；纯剪辑、视频理解或 Listing 文案
@@ -60,7 +60,7 @@ MCP 创建工具重放已终态任务时，可能只返回状态回执、`result
 | 商品图片 | jpg/jpeg/png/webp，每张 1 字节至 20 MiB；输入分析接受 1–20 张 |
 | 商品名称、卖点 | 非空字符串；多条卖点合并成字符串 |
 | 类目、属性 | 可选字符串；未知就省略，不编造 |
-| 视频规格 | 时长 10/15/20/30 秒；画幅 16:9/9:16/1:1；其余见题集 |
+| 视频规格 | 时长 4–30 的整数秒；画幅 16:9/9:16/1:1；其余见题集 |
 
 ## 开始前提问
 
@@ -91,9 +91,8 @@ questions:
     type: text
     required: false
   - id: duration
-    ask: 目标视频时长是多少秒？
-    type: choice
-    choices: [10, 15, 20, 30]
+    ask: 目标视频时长是多少秒？（4 到 30 之间的整数秒）
+    type: number
     required: true
     default: 10
   - id: aspect_ratio
@@ -120,10 +119,10 @@ questions:
     required: false
     default: false
   - id: need_audio
-    ask: 是否需要生成音频？
+    ask: 是否生成有声音的视频？（默认有声音；需要静音视频选否）
     type: boolean
     required: false
-    default: false
+    default: true
   - id: style_pref
     ask: 对视觉风格有偏好吗？（如清爽产品摄影、暖调生活场景；没有则由平台按类目选择）
     type: text
@@ -175,7 +174,8 @@ HTTP 201 返回 `file_ref`、`upload.method`、`upload.url`、`upload.headers` �
 - `file_refs`：1–20 项，已上传 file_ref 或 HTTPS 图片 URL；
 - `product_name`、`selling_points`、`duration_seconds`、`aspect_ratio` 为必填；
 - 可选 `category`、`attributes`、`target_market`、`style_pref`、`allow_human`、
-  `must_show`、`must_hide`、`resolution`、`output_lang`、`need_audio`。
+  `must_show`、`must_hide`、`resolution`、`output_lang`、`need_audio`（默认 true，
+  按有声视频写提示词；需要静音视频时显式传 false）。
 
 题集 `duration` 映射到 `duration_seconds` 数字；布尔值用 JSON boolean。
 HTTP 202 返回 `analysis_id`，以
@@ -203,12 +203,14 @@ HTTP 202 返回 `analysis_id`，以
   "analysis_id": "<分析任务 ID，服务端使用平台持有的提示词>",
   "duration_seconds": 10,
   "aspect_ratio": "16:9",
-  "resolution": "720p",
-  "with_audio": false
+  "resolution": "720p"
 }
 ```
 
-允许分辨率 480p/720p/1080p，实际支持及降级以结果 `issues` 为准。
+允许分辨率 480p/720p/1080p，实际支持及降级以结果 `issues` 为准。时长须为
+4–30 的整数秒（旧档位 10/15/20/30 仍合法，出界或非整数会被 422 拒绝）。生成
+默认有声音（`with_audio` 缺省按 true）；用户要求静音视频时才传
+`"with_audio": false`，分析阶段同步传 `need_audio=false`。
 HTTP 202 返回 `generation_id`；GET `/v1/video/generation/{generationId}` 查询。
 成片生成后先展示视频。质检为可选能力：用户已要求质检则继续；否则请用户选择。
 用户不选择质检时直接交付，并标明“未经平台质检”。以下重上传、质检和返修
