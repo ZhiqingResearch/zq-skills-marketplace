@@ -2,7 +2,7 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.5 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.6 target=claude-code -->
 
 # 多平台 Listing 生成与评分
 
@@ -169,8 +169,10 @@ Content-Type: application/json
 ```
 
 `listing.platform` 与 market 对应，至少含一项实质文案内容。缺标题、要点等可以
-进入评分，不要擅自补全差稿后再评分。可选 `productFacts` 与生成 product 同结构，
-由用户独立提供；不能把生成稿或待评稿本身当作事实证据。
+进入评分，不要擅自补全差稿后再评分。可选 `productFacts` 由用户独立提供，结构
+比生成 product 更严：`name/category/facts/attributes` 四键全必填，且 `facts`
+与 `attributes` 至少一项非空（生成 `product` 仅强制 name/category，同为至少一项
+非空）；不能把生成稿或待评稿本身当作事实证据。
 
 已有生成结果可直接将其 `listing` 对象用于评分。对于用户原稿，保留字段结构；
 常用文本字段如下，额外复杂字段仅在确知其类型时提交：
