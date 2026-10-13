@@ -2,7 +2,13 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.6 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.7 target=claude-code -->
+
+## 平台连接
+
+所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
+忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
+
 
 # 多平台 Listing 生成与评分
 
@@ -29,15 +35,10 @@ Listing 文案（必填）；可选：品牌、关键词数据、参考稿、必
 ## API key 配置
 
 使用项目为当前用户签发的 KeyB（通常 `zk-`，兼容旧 `sk_`）。REST 优先从安全
-环境变量 `ZQ_API_KEY` / `ZQ_API_BASE` 读取，缺项再读
+环境变量 `ZQ_API_KEY` 读取，缺项再读
 `~/.config/zq-skills/credentials`；按首个 `=` 分割，不 source/eval。
-API origin 缺省用 `https://skills-platform-api.zhiqingresearch.com`，不另加 `/api` 或 `/v1` 后缀。
-首个请求前自检生效 API 地址（环境变量、凭据文件或安装包缺省）：与本包
-缺省正式地址 `https://skills-platform-api.zhiqingresearch.com` 同 host（协议 http/https 不敏感）直接放行；
-含 `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建
-任务，向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包；
-其余地址（如 `skills-platform-api-uat.zhiqingresearch.com` 预发环境）先向用户
-确认是否为其指定的服务，确认后本次会话沿用，不自动改写。
+所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
+只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
 带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills` 可验证鉴权；
 200 的空 `data` 数组也有效。缺凭据引导 `zq-config`，不索取 KeyA，不回显 KeyB。
 

@@ -2,7 +2,13 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.5 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.6 target=claude-code -->
+
+## 平台连接
+
+所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
+忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
+
 
 # 视频理解与平台关键帧提取
 
@@ -42,14 +48,9 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
 3. 不回显完整 KeyB，不把它写入仓库、日志、命令参数或交付文件。
 4. REST 先用 `GET https://skills-platform-api.zhiqingresearch.com/api/v1/skills` 验证，HTTP 200 的 `data` 是能力数组；
    即使为空也表示此次鉴权成功。MVP 没有余额查询端点。
-5. API 地址优先取环境变量 `ZQ_API_BASE`，再取凭据文件；最后使用安装包中地址。
-   地址为 origin，不加 `/api` 或 `/v1` 后缀；凭据按首个 `=` 分割，不 source/eval。
-6. 首个请求前自检生效 API 地址（环境变量、凭据文件或安装包缺省）：与本包
-   缺省正式地址 `https://skills-platform-api.zhiqingresearch.com` 同 host（协议 http/https 不敏感）直接放行；
-   含 `skills-platform-api-dev.zhiqingresearch.com` 即为 dev 测试环境，不创建
-   任务，向用户说明该环境无正式记录与计费，改用正式地址或先升级技能包；
-   其余地址（如 `skills-platform-api-uat.zhiqingresearch.com` 预发环境）先向
-   用户确认是否为其指定的服务，确认后本次会话沿用，不自动改写。
+5. 所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
+   只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
+   凭据按首个 `=` 分割，不 source/eval。
 
 MCP 创建工具重放已终态任务时，可能只返回状态回执、`result=null` 和查询
 `next_action`。这不表示没有产物；按原任务 ID 调用对应查询工具取得结果或失败
