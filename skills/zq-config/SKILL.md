@@ -1,14 +1,13 @@
 ---
 name: zq-config
-version: 1.0.5
+version: 1.0.6
 description: 当用户首次配置、检查、更换或删除 zq-skills 平台 KeyB，或排查 API 凭据问题时使用。支持本地 REST 凭据和 MCP 连接鉴权。
 ---
-<!-- zq-skills: zq-config v1.0.5 target=free -->
+<!-- zq-skills: zq-config v1.0.6 target=free -->
 
 ## 平台连接
 
 所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
-忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
 
 
 # zq-config — API key 配置助手
@@ -22,7 +21,6 @@ description: 当用户首次配置、检查、更换或删除 zq-skills 平台 K
 - REST：读取安全注入的 `ZQ_API_KEY` 环境变量，缺项再读
   `~/.config/zq-skills/credentials`。逐行按第一个 `=` 分割；不要 source/eval 文件。
 - 所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
-  忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
 - MCP：KeyB 由客户端安全的连接设置放在 `/mcp` 的 `Authorization: Bearer <KeyB>`；
   平台 API 地址与 MCP 服务地址可能不同。不得把 KeyB 填进模型工具参数。
 
@@ -37,7 +35,7 @@ ZQ_API_KEY=<用户 KeyB>
 1. 缺少 KeyB 时引导在本地受控输入或客户端凭据设置中填写，
    不要求粘贴到公开对话；无需提供 API 地址。
 2. 创建 `~/.config/zq-skills`，目录权限 700，凭据文件权限 600。
-   只保存或更新 KeyB，移除旧 API 地址字段；以临时文件加原子替换写入，
+   只保存或更新 KeyB；以临时文件加原子替换写入，
    不输出完整内容，保留其他无关字段。
 3. 执行 status。轮换由项目方签发新 KeyB；同手机号重新签发会使旧 KeyB 失效。
    本助手只替换本地/连接凭据，不自行持有 KeyA 或调用签发接口。
@@ -60,8 +58,7 @@ MCP 使用 `list_skills` 做同样检查。不要同时尝试另一通道来绕�
 
 ## remove
 
-用户要求删除本地凭据时删除该文件；只要求删除某个字段时保留其他字段。
-这不会吊销服务端 KeyB，吊销需由项目方处理。删除后需要重新配置才可调用。
+删除只作用于用户指定的凭据来源：本地 credentials 文件、当前会话的 ZQ_API_KEY 或 MCP 连接凭据分别处理。删除文件后仍可能有其他活动来源；检查来源是否仍存在，只报告脱敏状态，不能声称必然无法调用。删除字段时保留其他字段；本地删除不等于服务端吊销，吊销由项目方处理。
 
 ## 无本地凭据文件的环境
 

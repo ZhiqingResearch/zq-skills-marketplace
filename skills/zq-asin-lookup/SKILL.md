@@ -2,19 +2,17 @@
 name: zq-asin-lookup
 description: 当用户给出 Amazon ASIN 需要查询商品公开信息（标题、品牌、卖点、图片、价格、评分等），用于选品核对或作为后续 Listing、视频任务的商品事实来源时使用。
 ---
-<!-- zq-skills: zq-asin-lookup v0.1.4 target=claude-code -->
+<!-- zq-skills: zq-asin-lookup v0.1.5 target=claude-code -->
 
 ## 平台连接
 
 所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
-忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
 
 
 # ASIN 商品信息查询
 
 
-## 何时使用 / 何时不使用
-## 开始时先概述（本技能每次会话首次被调用时）
+## 何时使用与开始概述（本技能每次会话首次被调用时）
 
 先用两三句话向用户概述本技能能做什么与计费方式，再列出本次操作需要用户
 提供的信息清单（标明必填/可选；用户已给出的不重复询问）。清单齐备后才
@@ -38,13 +36,12 @@ description: 当用户给出 Amazon ASIN 需要查询商品公开信息（标题
 环境变量 `ZQ_API_KEY` 读取，缺项再读
 `~/.config/zq-skills/credentials`；按首个 `=` 分割，不 source/eval。
 所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
-只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
 带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills` 可验证鉴权；
 200 的空 `data` 数组也有效。缺凭据引导 `zq-config`，不索取 KeyA，不回显 KeyB。
 
 如已连接平台 MCP，使用 `lookup_amazon_product` / `get_amazon_product`。
 KeyB 仅在连接头中设置；MCP 创建参数是
-`{input:<下述REST body>,idempotency_key:<键>,wait_seconds:<可选>}`。
+`{asin,marketplace?,idempotency_key,wait_seconds?}`，业务字段平铺；完整示例见文末。
 查询传 `lookup_id`，可设置 `wait_seconds`（0–20 秒）。MCP 响应使用顶层
 lookup_id、status、result、error，没有 REST 的 `data` 包装；processing 表示
 queued/processing，failed/cancelled 是终态失败；调用错误读取 error_code，
@@ -150,10 +147,29 @@ Listing 生成、视频等后续付费任务；用户要求时先说明会另行
 | 401 / 404 | 核对 KeyB、origin、任务 ID 和所属用户，不通过换用户查询 |
 | 409 idempotency_conflict | 核对原键原完整 body，不自动换键 |
 | 413 / 422 | 按 error 提示修正 ASIN/站点/幂等键格式；ASIN 不接受 URL，不解释私有规则 |
-| 429 | 等待容量释放后原键原参数有限重试，不并行换键 |
+| 429 | 按下方限流约定等待，保留原请求与任务 ID |
 | billing_unavailable / service_unavailable | 联系项目方，停止创建，不修改项目计费属性绕过 |
 | billing_pending / billing_blocked（查询时） | 扣费未确认或被拒，不交付商品数据：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新创建 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
 | 任务 failed（crawler_* / product_not_found / billing_unavailable / task_*） | 停止并交付任务 ID、错误码和实际费用回执，不自动重新爬取。用户要求再试时先说明会重新计费，征得同意后用新幂等键发起新查询（可换站点或稍后再试） |
 | delivery_unavailable / GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留原任务 ID，不能重新创建替代查询 |
 | 商品数据疑似过期（价格/库存） | 如实说明 cached 与 fetched_at/expires_at；需要新数据时等过期后用新幂等键查询，不声称实时 |
+
+NEW 202 是受理提交时的初始回执，不代表响应送达时的当前执行或费用状态；随后用原任务 ID 查询，重放也读取原任务，不换键新建。429 可能是时间窗口限流或任务容量限制。优先按 Retry-After 或 MCP next_action.retry_after_seconds 等待，不把等待建议当成完成时间。上传登记当前每用户 30 次/小时，任务创建共享每分钟 60 次 NEW 准备；原键有效重放不消耗新任务额度。任务恢复复用原键原完整参数，不换 Key 或幂等键绕过限流。明确的上传 429 未签发 file_ref，可等待后重试；网络结果未知时不自动重新登记。
+
+
+## MCP 请求示例
+
+以下仅为格式示例；替换为本次真实物料与任务 ID，新业务使用独立稳定幂等键。
+
+### MCP：lookup_amazon_product
+
+<!-- zq-tool: lookup_amazon_product -->
+
+```json
+{
+  "asin": "B0GRW15288",
+  "marketplace": "US",
+  "idempotency_key": "example-request-0001"
+}
+```

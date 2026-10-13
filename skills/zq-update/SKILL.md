@@ -1,14 +1,13 @@
 ---
 name: zq-update
-version: 1.1.3
-description: 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较；检查旧版安装的连接配置。
+version: 1.1.4
+description: 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较。
 ---
-<!-- zq-skills: zq-update v1.1.3 target=free -->
+<!-- zq-skills: zq-update v1.1.4 target=free -->
 
 ## 平台连接
 
 所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
-忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
 
 
 # zq-update — 客户端技能更新
@@ -21,13 +20,6 @@ description: 当用户检查或升级已安装的 zq-skills 客户端剧本时�
 
 如目录不可访问或网页端只有粘贴剧本，说明无法扫描；从用户提供的安装包或
 市场安装页确认当前版本。不能仅按目录名断定版本。
-
-## 旧版连接配置检查
-
-当前分发技能的 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`，
-只需配置 KeyB。检查旧版技能是否仍允许自定义 API 地址；若存在，建议升级到
-市场正式版本。旧凭据中的地址字段由 `zq-config` 清理，不让用户选择环境。
-仅凭文档提及某个地址不能断定历史请求实际连接到了哪里。
 
 ## 查询公共发布清单
 

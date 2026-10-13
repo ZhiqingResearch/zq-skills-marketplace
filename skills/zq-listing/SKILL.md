@@ -2,19 +2,17 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.8 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.9 target=claude-code -->
 
 ## 平台连接
 
 所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
-忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
 
 
 # 多平台 Listing 生成与评分
 
 
-## 何时使用 / 何时不使用
-## 开始时先概述（本技能每次会话首次被调用时）
+## 何时使用与开始概述（本技能每次会话首次被调用时）
 
 先用两三句话向用户概述本技能能做什么与计费方式，再列出本次操作需要用户
 提供的信息清单（标明必填/可选；用户已给出的不重复询问）。清单齐备后才
@@ -38,7 +36,6 @@ Listing 文案（必填）；可选：品牌、关键词数据、参考稿、必
 环境变量 `ZQ_API_KEY` 读取，缺项再读
 `~/.config/zq-skills/credentials`；按首个 `=` 分割，不 source/eval。
 所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
-只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
 带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills` 可验证鉴权；
 200 的空 `data` 数组也有效。缺凭据引导 `zq-config`，不索取 KeyA，不回显 KeyB。
 
@@ -111,12 +108,7 @@ questions:
 任务即可，不换键重新生成；终态查询透传 `billed` 回执，只报积分口径；费用明细以 SellerOS 积分账单为准）。不据此承诺固定
 积分或零成本。无余额查询接口。
 
-生成查询可能降级交付：模型输出未通过严格校验时 status=completed、result
-按原样交付，issues 逐项列出未通过规则（severity=error 须按 suggestion 修正
-后再发布，如压缩超限标题、改写禁用词——禁用词匹配不区分否定句）。每个任务
-恰好一次模型调用、一笔扣费，平台不会自动修复重试。是否重新生成由用户决定：
-先展示 issues 与修正建议并说明重新生成会再次扣积分，用户同意后才用新幂等键
-发起；未经确认不自动重发。只有 issues 为空的 completed 结果可直接发布。
+Listing 生成在受控校验失败时可在原任务内自动修复一次；修复后仍无效可返回 MODEL_OUTPUT_INVALID，并非所有校验失败都会降级完成。各实际模型调用的费用保留，以原任务 billed 回执为准，不承诺恰好一次模型调用或固定费用。客户端不得自行追加修复调用；用户批准重新生成后才以新幂等键创建独立付费任务。completed 若带 issues，交付内容及逐项建议，不把它们隐藏或视为自动通过。
 
 ### 生成
 
@@ -213,10 +205,55 @@ assessmentCoverage 与 rubricVersion；保留未评估项和覆盖率，不能�
 | 401 / 404 | 核对 KeyB、origin、任务 ID 和所属用户，不通过换用户查询 |
 | 409 idempotency_conflict | 核对原键原完整 body，不自动换键 |
 | 413 / 422 | 按 error.fieldErrors 的 path/code 修正体积或字段；不解释私有规则 |
-| 429 | 等待容量释放后原键原参数有限重试，不并行换键 |
+| 429 | 按下方限流约定等待，保留原请求与任务 ID |
 | billing_unavailable / skill_unavailable | 联系项目方，停止创建，不修改项目计费属性绕过 |
 | billing_pending / billing_blocked（查询时） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
-| TASK_TIMEOUT / TASK_INTERRUPTED / TASK_FAILED，以及生成输出完全不可解析时的 MODEL_OUTPUT_INVALID | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本；生成校验失败优先以 completed+issues 降级交付，不走此行 |
+| TASK_TIMEOUT / TASK_INTERRUPTED / TASK_FAILED，以及生成输出完全不可解析时的 MODEL_OUTPUT_INVALID | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本；实际终态和费用以原任务回执为准，不保证校验失败都降级交付 |
 | completed 但 issues 含 severity=error（生成降级交付） | 非失败：交付 result 内容并逐条转述 issues 与 suggestion；是否重新生成（会再次扣积分、用新幂等键）必须先征得用户同意 |
 | delivery_unavailable / GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留原任务 ID，不能重新生成替代查询 |
+
+NEW 202 是受理提交时的初始回执，不代表响应送达时的当前执行或费用状态；随后用原任务 ID 查询，重放也读取原任务，不换键新建。429 可能是时间窗口限流或任务容量限制。优先按 Retry-After 或 MCP next_action.retry_after_seconds 等待，不把等待建议当成完成时间。上传登记当前每用户 30 次/小时，任务创建共享每分钟 60 次 NEW 准备；原键有效重放不消耗新任务额度。任务恢复复用原键原完整参数，不换 Key 或幂等键绕过限流。明确的上传 429 未签发 file_ref，可等待后重试；网络结果未知时不自动重新登记。
+
+
+## MCP 请求示例
+
+以下仅为格式示例；替换为本次真实物料与任务 ID，新业务使用独立稳定幂等键。
+
+### MCP：generate_listing
+
+<!-- zq-tool: generate_listing -->
+
+```json
+{
+  "input": {
+    "market": "amazon_us",
+    "product": {
+      "name": "Travel Mug",
+      "category": "Drinkware",
+      "facts": [
+        "Capacity 500 ml",
+        "Stainless steel body"
+      ]
+    }
+  },
+  "idempotency_key": "example-request-0001"
+}
+```
+
+### MCP：score_listing
+
+<!-- zq-tool: score_listing -->
+
+```json
+{
+  "input": {
+    "market": "amazon_us",
+    "listing": {
+      "platform": "amazon",
+      "title": "Travel Mug 500 ml"
+    }
+  },
+  "idempotency_key": "example-request-0001"
+}
+```

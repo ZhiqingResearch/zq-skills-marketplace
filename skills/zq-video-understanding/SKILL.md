@@ -1,13 +1,12 @@
 ---
 name: zq-video-understanding
-description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
+description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本提取 6 至 10 张真实关键帧，说明模型选点或平台补选来源。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.7 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.8 target=claude-code -->
 
 ## 平台连接
 
 所有平台 REST 请求固定使用 `https://skills-platform-api.zhiqingresearch.com`，只需配置 KeyB。
-忽略环境变量或旧凭据文件中的其他地址配置，不询问用户选择环境。
 
 
 # 视频理解与平台关键帧提取
@@ -17,15 +16,14 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
 再下载平台脚本从原视频提取的关键帧。不要在客户端自行猜测时间点，也不要把
 平台内部提示词、模型路由或脚本内容复述给用户。
 
-## 何时使用 / 何时不使用
-## 开始时先概述（本技能每次会话首次被调用时）
+## 何时使用与开始概述（本技能每次会话首次被调用时）
 
 先用两三句话向用户概述本技能能做什么与计费方式，再列出本次操作需要用户
 提供的信息清单（标明必填/可选；用户已给出的不重复询问）。清单齐备后才
 开始执行；用户问"这个技能是干嘛的"时也按此概述回答。
 
 概述示例：本技能把你提供的视频上传平台做结构化视觉分析（镜头、画面、
-文字等），并按模型选定的时间点提取 6-10 张真实关键帧；按次经 SellerOS 扣
+文字等），并提取 6-10 张真实关键帧，说明选点来源；按次经 SellerOS 扣
 积分。本次需要：① 本地视频文件（必填，≤150MiB，常见容器格式）；可选：
 采样镜头数（6-10，默认 8）、分析语言（默认中文）、额外关注点。
 
@@ -49,7 +47,6 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
 4. REST 先用 `GET https://skills-platform-api.zhiqingresearch.com/api/v1/skills` 验证，HTTP 200 的 `data` 是能力数组；
    即使为空也表示此次鉴权成功，不表示积分余额或可扣费状态。
 5. 所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
-   只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
    凭据按首个 `=` 分割，不 source/eval。
 
 MCP 创建工具重放已终态任务时，可能只返回状态回执、`result=null` 和查询
@@ -76,13 +73,13 @@ MCP 创建工具重放已终态任务时，可能只返回状态回执、`result
 
 ## 执行流程
 
-API 根地址使用 `https://skills-platform-api.zhiqingresearch.com`。平台请求带 KeyB；预签名 PUT 请求绝不能
+API 根地址使用 `https://skills-platform-api.zhiqingresearch.com`。平台请求带 KeyB；对象存储上传请求绝不能
 携带 KeyB。为视频分析生成一个 8–128 字符的稳定 `Idempotency-Key`，网络
 恢复时必须复用原键和原完整请求，不能自动重发未知结果的 POST。
 
 若已连接该平台 MCP，可使用 `create_upload` → `analyze_video` →
 `get_video_analysis` → `get_video_frame`；模型任务创建工具 `analyze_video` 增加 `idempotency_key`，
-可设置 `wait_seconds`（0–20 秒），KeyB 只在连接头中传入。PUT 仍由客户端执行；
+可设置 `wait_seconds`（0–20 秒），KeyB 只在连接头中传入。POST 表单传输仍由客户端执行；
 `create_upload` 仅收 filename/content_type/size_bytes，不加任务参数。
 MCP 分析工具返回顶层 analysis_id、status、result、issues，processing 表示仍在进行，
 failed/cancelled 是终态失败；调用错误读取 error_code，unknown 表示受理未知；`get_video_frame` 返回可下载的签名 URL，不额外带 KeyB。
@@ -102,18 +99,9 @@ Content-Type: application/json
 }
 ```
 
-成功返回 HTTP 201，包含 `file_ref`、`upload.url`、`upload.headers`、
-`upload.expires_at` 和 `expires_at`。随后在 15 分钟内执行：
+上传登记成功只代表取得 file_ref。按 upload.method=POST 向 upload.url 发送 multipart/form-data：upload.fields 原样逐个添加，最后添加 file 原始字节；由表单库生成 Content-Type/boundary。遵守 upload.max_size_bytes、MIME 和 expires_at，存储返回 2xx 后才使用 file_ref。对象存储请求不携带 KeyB；不使用 PUT、raw POST 或把 fields 当 headers。登记结果未知时停止并保留回执，不自动重新登记。
 
-```http
-PUT {upload.url}
-Content-Type: <upload.headers 中的 Content-Type>
-
-<原始视频二进制>
-```
-
-PUT 通常返回 200 或 204。必须原样使用平台返回的 URL 与请求头，不修改查询
-参数，不向 Spaces/CDN 地址附加 `Authorization`。
+平台 file_ref 指向的 MP4 必须为 faststart（moov 在 mdat 前）。上传前检查；需要调整时创建无损转封装副本：ffmpeg -i 输入.mp4 -c copy -movflags +faststart 输出.mp4。读取副本的真实大小后登记上传；422 返回布局指引时按指引处理并重新上传，不覆盖已经绑定的上传对象。此预检不扩展到外部 HTTPS 视频或其他容器。
 
 上传完成后保持对象不变。平台在分析受理时绑定 ETag；不要向同一预签名 URL
 覆盖或重传新内容。更换视频需重新登记上传，获得新的 file_ref。存储缺少 ETag
@@ -129,7 +117,7 @@ Idempotency-Key: <本次分析稳定键>
 Content-Type: application/json
 
 {
-  "file_ref": "file_...",
+  "file_ref": "file_00000000000000000000000000000001",
   "provider": "auto",
   "shot_count": 8,
   "analysis_lang": "中文",
@@ -159,7 +147,7 @@ Authorization: Bearer <ZQ_API_KEY>
 - 超过约 10 分钟仍未终态：保存 `analysis_id`，提示用户稍后继续查询，
   不要高频空转。
 
-`result.shots[].time` 是模型选择的原视频秒数，`frame_url` 是平台已按该时间点
+`result.shots[].time` 是截图对应的原视频秒数，`frame_url` 是平台已按该时间点
 执行抽帧脚本得到的 JPEG 入口，一律返回以 `/` 开头的**相对路径**（如
 `/v1/video/analysis/{analysis_id}/frames/frame-01-0000-01-0.jpg`），不是完整 URL。
 不要再次在本地抽帧。
@@ -174,8 +162,7 @@ Authorization: Bearer <ZQ_API_KEY>
 示例     = https://skills-platform-api.zhiqingresearch.com/v1/video/analysis/analysis_abc123/frames/frame-01-0000-01-0.jpg
 ```
 
-拼接规则：`frame_url` 自带开头的 `/`；`API_BASE_URL` 末尾若带有 `/`，先去掉
-再拼接，避免路径出现 `//`。对每个完整地址发带 KeyB 的 GET。平台校验归属后
+拼接时固定根地址末尾不加 `/`，保留 `frame_url` 开头的 `/`。对每个完整地址发带 KeyB 的 GET。平台校验归属后
 返回 HTTP 302，跳转到私有存储的短期签名地址；跟随跳转保存 JPEG 文件。跟随
 跨域跳转时不要把 KeyB 转发给目标存储域名。
 
@@ -194,7 +181,7 @@ Authorization: Bearer <ZQ_API_KEY>
 | 401 | KeyB 缺失、失效或不属于当前项目用户；引导重新领取/配置 |
 | 409 | 幂等冲突；核对原键与原完整请求，不自动换键新建 |
 | 422 | 按 `field_errors` 修正文件类型、大小、上传状态或分析参数 |
-| 429 | 总并发或当前 KeyB 达上限；等待后原键原参数有限重试，不并行换键 |
+| 429 | 按下方限流约定等待，保留原请求与任务 ID |
 | 503 billing_unavailable | 模型任务未启用或项目要求扣费；停止并联系项目方 |
 | 503 billing_pending / billing_blocked（查询或关键帧下载时） | 扣费未确认或被拒，不交付产物：稍后重查原任务/重取关键帧；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 受理结果未知；有 analysis_id 则查询，没有则保存原键和原完整参数，用户明确要求恢复后才原样重放 |
@@ -204,3 +191,39 @@ Authorization: Bearer <ZQ_API_KEY>
 
 错误内容只转述用户可行动的信息，不暴露对象键、签名 URL、内部脚本错误、
 模型供应商密钥或服务端堆栈。
+
+NEW 202 是受理提交时的初始回执，不代表响应送达时的当前执行或费用状态；随后用原任务 ID 查询，重放也读取原任务，不换键新建。429 可能是时间窗口限流或任务容量限制。优先按 Retry-After 或 MCP next_action.retry_after_seconds 等待，不把等待建议当成完成时间。上传登记当前每用户 30 次/小时，任务创建共享每分钟 60 次 NEW 准备；原键有效重放不消耗新任务额度。任务恢复复用原键原完整参数，不换 Key 或幂等键绕过限流。明确的上传 429 未签发 file_ref，可等待后重试；网络结果未知时不自动重新登记。
+
+镜头说明读取 shots[].caption。正常关键帧使用模型选定的时间点；issues 含 keyframe_selection_fallback 时，说明平台从已提取的真实候选帧补选，非模型指定，未追加模型调用。完整转述 issues，不因补选而重新创建付费分析。签名链接在保留期内失效可用原任务重新获取；帧本身已过期返回 404，分析结果仍保留。
+
+
+## MCP 请求示例
+
+以下仅为格式示例；替换为本次真实物料与任务 ID，新业务使用独立稳定幂等键。
+
+### MCP：create_upload
+
+<!-- zq-tool: create_upload -->
+
+```json
+{
+  "filename": "demo.mp4",
+  "content_type": "video/mp4",
+  "size_bytes": 10485760
+}
+```
+
+### MCP：analyze_video
+
+<!-- zq-tool: analyze_video -->
+
+```json
+{
+  "file_ref": "file_00000000000000000000000000000001",
+  "provider": "auto",
+  "shot_count": 8,
+  "analysis_lang": "中文",
+  "extra_focus": "可省略",
+  "idempotency_key": "example-request-0001"
+}
+```
