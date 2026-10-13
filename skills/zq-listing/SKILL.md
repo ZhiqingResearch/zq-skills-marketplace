@@ -2,7 +2,7 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.7 target=claude-code -->
+<!-- zq-skills: zq-listing v0.5.8 target=claude-code -->
 
 ## 平台连接
 
@@ -105,9 +105,8 @@ questions:
 完整 JSON 和任务 ID。省略字段与显式填入默认值不等价，恢复时不要补默认值或
 重写输入。两项 POST body 都不超过 64 KiB；POST/GET 均不带查询参数。
 
-本版对应候选 MVP。收费模式以平台响应为准：默认（disabled）拒绝模型创建；
-`operator-funded` 项目允许时执行、运营方承担成本；`selleros` 模式按网关实际
-CNY 费用逐笔经 SellerOS 扣积分（受理 `billed={state:"pending"}`，扣费确认前
+每项模型任务按平台实际费用经 SellerOS 扣积分，费用状态以原任务 `billed`
+回执为准（`billed={state:"pending"}` 表示尚待确认，扣费确认前
 查询返回 503 `billing_pending` / `billing_blocked` 不交付产物——稍后重查原
 任务即可，不换键重新生成；终态查询透传 `billed` 回执，只报积分口径；费用明细以 SellerOS 积分账单为准）。不据此承诺固定
 积分或零成本。无余额查询接口。
@@ -196,7 +195,7 @@ HTTP 202 的 `data.id` 为 `lscore_` 前缀；GET `/api/v1/listings/scores/{id}`
 自动轮询：`queued/processing` 时继续查询，不结束回合、不需用户催促，终态或约 3 分钟后才向用户汇报结果/失败/进度与任务 ID。completed 才读 result；
 failed 读取 `data.error` 并停止。未完成时 result 为 null。
 约 10 分钟未结束则保存 ID，告知可继续查询，不新建任务。REST 不加 wait 参数。
-MVP 默认任务期限 15 分钟；超时、中断或客户端停止等待不证明上游没执行。
+任务状态以原任务查询为准；超时、中断或客户端停止等待不证明上游没执行。
 
 ## 交付
 
@@ -216,7 +215,7 @@ assessmentCoverage 与 rubricVersion；保留未评估项和覆盖率，不能�
 | 413 / 422 | 按 error.fieldErrors 的 path/code 修正体积或字段；不解释私有规则 |
 | 429 | 等待容量释放后原键原参数有限重试，不并行换键 |
 | billing_unavailable / skill_unavailable | 联系项目方，停止创建，不修改项目计费属性绕过 |
-| billing_pending / billing_blocked（查询时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
+| billing_pending / billing_blocked（查询时） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
 | TASK_TIMEOUT / TASK_INTERRUPTED / TASK_FAILED，以及生成输出完全不可解析时的 MODEL_OUTPUT_INVALID | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本；生成校验失败优先以 completed+issues 降级交付，不走此行 |
 | completed 但 issues 含 severity=error（生成降级交付） | 非失败：交付 result 内容并逐条转述 issues 与 suggestion；是否重新生成（会再次扣积分、用新幂等键）必须先征得用户同意 |

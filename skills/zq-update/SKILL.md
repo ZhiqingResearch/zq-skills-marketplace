@@ -1,9 +1,9 @@
 ---
 name: zq-update
-version: 1.1.2
+version: 1.1.3
 description: 当用户检查或升级已安装的 zq-skills 客户端剧本时使用。读取本地版本标记，并与市场发布清单或用户提供的安装包版本比较；检查旧版安装的连接配置。
 ---
-<!-- zq-skills: zq-update v1.1.2 target=free -->
+<!-- zq-skills: zq-update v1.1.3 target=free -->
 
 ## 平台连接
 
@@ -44,9 +44,9 @@ curl --fail --silent --show-error https://raw.githubusercontent.com/ZhiqingResea
 
 以市场正式发布清单或已校验的正式安装包版本为依据。读不到发布源就说明“尚未确认是否最新”，不要编造新版本。
 
-MVP 的 `GET /api/v1/skills` / MCP `list_skills` 返回运行时能力目录和 inputSchema，
-不提供客户端安装版本、min_client_version 或安装包。MVP 没有旧版 `/v1/skills`
-及 `/v1/skills/{id}/client` 分发接口；不要把运行时 slug 与本地技能 id 强行匹配。
+`GET /api/v1/skills` / MCP `list_skills` 返回运行时能力目录和 inputSchema，
+不提供客户端安装版本、min_client_version 或安装包。更新只查询上述公共发布
+清单；不要猜测安装接口，也不要把运行时 slug 与本地技能 id 强行匹配。
 409 表示幂等冲突等请求问题，不能单凭状态码判定客户端过旧。
 
 ## 更新

@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本按模型选出的时间点提取 6 至 10 张真实关键帧。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.6 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.7 target=claude-code -->
 
 ## 平台连接
 
@@ -33,7 +33,7 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
 - 使用：用户希望理解、总结一个 `.mp4`、`.mov` 或 `.webm` 视频，或希望
   获取 6–10 张有代表性的真实画面。
 - 不使用：实时视频流、超过 150 MiB 的视频、纯剪辑/转码任务，以及要求完整
-  对白转写或声音分析的任务。当前 Demo 使用抽样画面做视觉分析，不处理音轨。
+  对白转写或声音分析的任务。本技能使用抽样画面做视觉分析，不处理音轨。
 
 ## API key 配置
 
@@ -47,7 +47,7 @@ description: 上传用户视频到平台，异步生成结构化视觉分析，�
    不得要求用户把 KeyA 或对象存储密钥交给你。
 3. 不回显完整 KeyB，不把它写入仓库、日志、命令参数或交付文件。
 4. REST 先用 `GET https://skills-platform-api.zhiqingresearch.com/api/v1/skills` 验证，HTTP 200 的 `data` 是能力数组；
-   即使为空也表示此次鉴权成功。MVP 没有余额查询端点。
+   即使为空也表示此次鉴权成功，不表示积分余额或可扣费状态。
 5. 所有 REST 请求固定使用生产地址 `https://skills-platform-api.zhiqingresearch.com`。
    只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
    凭据按首个 `=` 分割，不 source/eval。
@@ -137,10 +137,10 @@ Content-Type: application/json
 }
 ```
 
-HTTP 202 返回 `analysis_id`、`status` 和 `billed`。收费模式以平台响应为准：
-`billed={state:"not_charged"}` 表示运营方承担成本、未扣费；`selleros` 模式
-按网关实际费用逐笔经 SellerOS 扣积分（受理 `state:"pending"`；向用户只报积分口径，费用明细以 SellerOS 积分账单为准）。
-服务端默认禁用模型创建，返回 `billing_unavailable` 时停止并联系项目方，
+HTTP 202 返回 `analysis_id`、`status` 和 `billed`。每次分析按平台实际费用
+经 SellerOS 扣积分；费用状态以原任务 `billed` 回执为准，`pending` 表示尚待确认。
+向用户只报积分口径，费用明细以 SellerOS 积分账单为准。
+返回 `billing_unavailable` 时停止并联系项目方，
 不能要求充值或修改计费属性绕过；扣费确认前查询与关键帧下载可能返回
 503 `billing_pending` / `billing_blocked`——稍后重查原任务即可，不换键重新生成。
 
@@ -184,7 +184,7 @@ Authorization: Bearer <ZQ_API_KEY>
 向用户交付：结构化摘要、关键词、人物、物体、场景时间轴、按顺序命名的
 关键帧，以及 `result.usage` 实际返回的 model、input_tokens、output_tokens 等用量。货币费用字段可能省略，不能把缺失金额当作零费用，
 也不能根据 token 或历史报价自行计算实际账单。`issues` 必须一并
-转述；尤其不能隐瞒 `sampled_visual_analysis`，它表示当前 Demo 只基于候选帧
+转述；尤其不能隐瞒 `sampled_visual_analysis`，它表示本次结果基于采样帧
 做视觉分析，音轨或采样间瞬时画面可能未被覆盖。
 
 ## 出错处理
@@ -196,7 +196,7 @@ Authorization: Bearer <ZQ_API_KEY>
 | 422 | 按 `field_errors` 修正文件类型、大小、上传状态或分析参数 |
 | 429 | 总并发或当前 KeyB 达上限；等待后原键原参数有限重试，不并行换键 |
 | 503 billing_unavailable | 模型任务未启用或项目要求扣费；停止并联系项目方 |
-| 503 billing_pending / billing_blocked（查询或关键帧下载时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务/重取关键帧；被拒时联系项目方处理原账单，不换键重新生成 |
+| 503 billing_pending / billing_blocked（查询或关键帧下载时） | 扣费未确认或被拒，不交付产物：稍后重查原任务/重取关键帧；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 受理结果未知；有 analysis_id 则查询，没有则保存原键和原完整参数，用户明确要求恢复后才原样重放 |
 | task_timeout / task_interrupted | 停止自动执行；查询原任务，失败不证明上游未执行或无成本，不能自动换键重跑 |
 | GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留任务 ID |

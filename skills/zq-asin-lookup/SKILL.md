@@ -2,7 +2,7 @@
 name: zq-asin-lookup
 description: 当用户给出 Amazon ASIN 需要查询商品公开信息（标题、品牌、卖点、图片、价格、评分等），用于选品核对或作为后续 Listing、视频任务的商品事实来源时使用。
 ---
-<!-- zq-skills: zq-asin-lookup v0.1.3 target=claude-code -->
+<!-- zq-skills: zq-asin-lookup v0.1.4 target=claude-code -->
 
 ## 平台连接
 
@@ -22,7 +22,7 @@ description: 当用户给出 Amazon ASIN 需要查询商品公开信息（标题
 
 概述示例：本技能按 ASIN 查询 Amazon 商品公开信息（标题、品牌、卖点、
 图片、价格、评分等），返回带快照时间的商品数据；成功按次经 SellerOS 扣
-积分（标准 10 积分，实际以回执为准），失败不收费。本次需要：① ASIN
+积分（标准 10 积分，实际以回执为准）；失败时也须查看原任务费用回执。本次需要：① ASIN
 （必填，10 位大写字母/数字，不是商品链接）；② 站点（可选，默认 US，
 支持 UK/DE/JP/CA/FR/IT/ES/AU/IN/MX/SG）。
 
@@ -89,16 +89,14 @@ questions:
 原完整 JSON 和任务 ID。网络重试沿用原键原参数，不换键不并行。POST body 不
 超过 64 KiB；POST/GET 均不带查询参数。
 
-本版对应候选 MVP。收费模式以平台响应为准：默认（disabled）拒绝创建；
-`operator-funded` 项目允许时执行、运营方承担成本；`selleros` 模式下成功任务
-（含缓存命中）按标准 10 积分经 SellerOS 扣费，实际以 `billed` 回执
+成功任务（含缓存命中）按标准 10 积分经 SellerOS 扣费，实际以 `billed` 回执
 `creditsCharged` 为准（受理 `billed={state:"pending"}`，扣费确认前查询返回
 503 `billing_pending` / `billing_blocked` 不交付商品数据——稍后重查原任务
-即可，不换键重新创建）。爬取失败不收费；原任务查询、原幂等键重放不重复
+即可，不换键重新创建）。失败不能推定未收费，须以原任务费用回执为准；原任务查询、原幂等键重放不重复
 收费。计费明细以 SellerOS 积分账单为准。
 
 本技能不调用模型，没有降级交付概念：completed 即完整商品快照，failed 交付
-错误码且本次未扣费。
+错误码及实际费用回执，不把任务失败等同于未扣费。
 
 ### 创建查询
 
@@ -154,8 +152,8 @@ Listing 生成、视频等后续付费任务；用户要求时先说明会另行
 | 413 / 422 | 按 error 提示修正 ASIN/站点/幂等键格式；ASIN 不接受 URL，不解释私有规则 |
 | 429 | 等待容量释放后原键原参数有限重试，不并行换键 |
 | billing_unavailable / service_unavailable | 联系项目方，停止创建，不修改项目计费属性绕过 |
-| billing_pending / billing_blocked（查询时，selleros 模式） | 扣费未确认或被拒，不交付商品数据：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新创建 |
+| billing_pending / billing_blocked（查询时） | 扣费未确认或被拒，不交付商品数据：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新创建 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
-| 任务 failed（crawler_* / product_not_found / billing_unavailable / task_*） | 停止并交付任务 ID 与错误码；本次未扣费，不自动重新爬取。用户要求再试时先说明会重新计费，征得同意后用新幂等键发起新查询（可换站点或稍后再试） |
+| 任务 failed（crawler_* / product_not_found / billing_unavailable / task_*） | 停止并交付任务 ID、错误码和实际费用回执，不自动重新爬取。用户要求再试时先说明会重新计费，征得同意后用新幂等键发起新查询（可换站点或稍后再试） |
 | delivery_unavailable / GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留原任务 ID，不能重新创建替代查询 |
 | 商品数据疑似过期（价格/库存） | 如实说明 cached 与 fetched_at/expires_at；需要新数据时等过期后用新幂等键查询，不声称实时 |

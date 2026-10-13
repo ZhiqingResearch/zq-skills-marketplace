@@ -2,7 +2,7 @@
 name: zq-amazon-product-video
 description: 当用户提供商品图片、名称和卖点，希望制作 Amazon 商品广告视频或对成片质检返修时使用。通过平台分析、补图、生成和质检能力完成。
 ---
-<!-- zq-skills: zq-amazon-product-video v1.3.7 target=claude-code -->
+<!-- zq-skills: zq-amazon-product-video v1.3.8 target=claude-code -->
 
 ## 平台连接
 
@@ -28,7 +28,7 @@ description: 当用户提供商品图片、名称和卖点，希望制作 Amazon
 
 
 用于商品广告视频生成和基于质检结果的返修；纯剪辑、视频理解或 Listing 文案
-分别使用对应工具。本剧本对齐 MCP / Skills API MVP，服务是否已部署以项目方为准。
+分别使用对应工具。本技能通过平台 REST 或已连接的 MCP 调用。
 
 ## API key 配置
 
@@ -38,7 +38,7 @@ REST 使用当前用户 KeyB（通常 `zk-`，兼容旧 `sk_`）。优先读取�
 只读取 KeyB，忽略环境变量或旧凭据文件中的地址配置，不询问用户选择环境。
 先带 `Authorization: Bearer <KeyB>` 调用 `GET /api/v1/skills`，200 的 `data`
 为技能数组；空数组也表示鉴权通过。未配置时引导 `zq-config`，不索取 KeyA，
-不回显 KeyB、不写入仓库或命令参数。MVP 没有余额查询接口。
+不回显 KeyB、不写入仓库或命令参数。能力发现结果不表示积分余额或可扣费状态。
 
 如已连接平台 MCP，可使用 `create_upload`、`analyze_product_video`、
 `get_product_video_analysis`、`generate_image`、`get_image_generation`、
@@ -144,10 +144,8 @@ questions:
 body 和返回 ID。同一请求恢复使用原键原参数；已批准的新返修是新任务，使用新键。
 上传登记不保证幂等，不与分析/生成共用“全流程键”。
 
-MVP 默认拒绝创建模型任务（`billing_unavailable`）。收费模式以平台响应为准：
-`operator-funded` 项目允许时执行，响应 `billed={state:"not_charged"}`，运营方
-承担模型成本；`selleros` 模式按网关实际 CNY 费用逐笔经 SellerOS 扣积分，受理
-`billed={state:"pending"}`，扣费确认前查询返回 503 `billing_pending` /
+每项模型任务按平台实际费用经 SellerOS 扣积分，费用状态以原任务 `billed`
+回执为准。`billed={state:"pending"}` 表示尚待确认，扣费确认前查询返回 503 `billing_pending` /
 `billing_blocked` 不交付产物——稍后重查原任务即可，不换键重新生成。终态查询
 透传 `billed` 回执，只报积分口径；费用明细以 SellerOS 积分账单为准。不得承诺每步固定积分、余额冻结或"免费无成本"。
 用户已要求制作视频且材料与下列确认完成后继续执行。
@@ -268,7 +266,7 @@ HTTP 202 返回 `qc_id`；GET `/v1/product-video/qc/{qcId}` 查询。
 | 422 | 按字段提示修正类型、数量、上传状态和参数 |
 | 429 | 总并发或 KeyB 达上限；等待后以原键原参数有限重试 |
 | billing_unavailable / skill_unavailable | 停止并联系项目方，不充值或更改项目属性绕过 |
-| billing_pending / billing_blocked（查询时，selleros 模式） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
+| billing_pending / billing_blocked（查询时） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 5xx 或网络异常 | 受理结果未知；有 ID 先查询，无 ID 保存原键与完整 body，仅用户明确恢复时原样重放 |
 | task_timeout / task_interrupted | 查询原任务，禁止自动换键重跑；不能声称上游未执行或无费用 |
 | GET 5xx / 网络异常 | 间隔重试最多 2 次，仍失败保留 ID |

@@ -1,9 +1,9 @@
 ---
 name: zq-config
-version: 1.0.4
+version: 1.0.5
 description: 当用户首次配置、检查、更换或删除 zq-skills 平台 KeyB，或排查 API 凭据问题时使用。支持本地 REST 凭据和 MCP 连接鉴权。
 ---
-<!-- zq-skills: zq-config v1.0.4 target=free -->
+<!-- zq-skills: zq-config v1.0.5 target=free -->
 
 ## 平台连接
 
@@ -13,7 +13,7 @@ description: 当用户首次配置、检查、更换或删除 zq-skills 平台 K
 
 # zq-config — API key 配置助手
 
-免费配置助手；检查凭据只做只读发现，不创建模型任务。本版面向 MCP / Skills API MVP。
+免费配置助手；检查凭据只做只读发现，不创建模型任务。支持 REST 与 MCP 连接鉴权。
 
 ## 凭据与地址
 
@@ -54,9 +54,9 @@ HTTP 200 的 `data` 是技能数组；空数组也表示本次鉴权通过，不
 只展示脱敏 key、地址、连接结果。可见技能不保证模型任务已启用。
 MCP 使用 `list_skills` 做同样检查。不要同时尝试另一通道来绕过权限或重复执行。
 
-MVP 没有余额查询端点；不能据发现结果声称有积分、可扣费或免费使用模型。
-模型创建默认返回 `billing_unavailable`；只有服务端显式启用 operator-funded
-且项目允许时才受理，成本由运营方承担。配置助手不修改服务端计费属性。
+能力发现不返回积分余额；不能据发现结果声称有积分、可扣费或免费使用模型。
+费用以具体任务的 `billed` 回执和 SellerOS 积分账单为准。业务调用返回
+`billing_unavailable` 时联系项目方处理；配置助手不修改服务端计费属性。
 
 ## remove
 

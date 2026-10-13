@@ -1,48 +1,48 @@
 {
   "channel": "release",
   "api_base": "https://skills-platform-api.zhiqingresearch.com",
-  "distribution_policy": "production-only-v1",
-  "release": "20261013-0235-d956942",
-  "git_commit": "d956942",
-  "source_generated_at": "2026-10-13T02:35:33.032Z",
-  "synced_at": "2026-10-13T02:35:36.871Z",
+  "distribution_policy": "production-only-v2",
+  "release": "20261013-0304-48b9b8e",
+  "git_commit": "48b9b8e",
+  "source_generated_at": "2026-10-13T03:04:14.250Z",
+  "synced_at": "2026-10-13T03:04:17.720Z",
   "canonical_target": "claude-code",
   "skills": [
     {
       "id": "zq-amazon-product-video",
-      "version": "1.3.7",
+      "version": "1.3.8",
       "type": "paid",
-      "source": "packages/zq-amazon-product-video/1.3.7/claude-code/SKILL.md"
+      "source": "packages/zq-amazon-product-video/1.3.8/claude-code/SKILL.md"
     },
     {
       "id": "zq-asin-lookup",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "type": "paid",
-      "source": "packages/zq-asin-lookup/0.1.3/claude-code/SKILL.md"
+      "source": "packages/zq-asin-lookup/0.1.4/claude-code/SKILL.md"
     },
     {
       "id": "zq-config",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "type": "free",
-      "source": "packages/zq-config/1.0.4/SKILL.md"
+      "source": "packages/zq-config/1.0.5/SKILL.md"
     },
     {
       "id": "zq-listing",
-      "version": "0.5.7",
+      "version": "0.5.8",
       "type": "paid",
-      "source": "packages/zq-listing/0.5.7/claude-code/SKILL.md"
+      "source": "packages/zq-listing/0.5.8/claude-code/SKILL.md"
     },
     {
       "id": "zq-update",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "type": "free",
-      "source": "packages/zq-update/1.1.2/SKILL.md"
+      "source": "packages/zq-update/1.1.3/SKILL.md"
     },
     {
       "id": "zq-video-understanding",
-      "version": "2.2.6",
+      "version": "2.2.7",
       "type": "paid",
-      "source": "packages/zq-video-understanding/2.2.6/claude-code/SKILL.md"
+      "source": "packages/zq-video-understanding/2.2.7/claude-code/SKILL.md"
     }
   ]
 }
