@@ -2,10 +2,10 @@
   "channel": "release",
   "api_base": "https://skills-platform-api.zhiqingresearch.com",
   "distribution_policy": "production-only-v3",
-  "release": "20261020-0529-a7ae687",
-  "git_commit": "a7ae687",
-  "source_generated_at": "2026-10-20T05:29:09.994Z",
-  "synced_at": "2026-10-20T05:29:16.774Z",
+  "release": "20261020-0547-b1e945c",
+  "git_commit": "b1e945c",
+  "source_generated_at": "2026-10-20T05:47:18.763Z",
+  "synced_at": "2026-10-20T05:47:24.125Z",
   "canonical_target": "claude-code",
   "skills": [
     {
@@ -16,9 +16,9 @@
     },
     {
       "id": "zq-asin-lookup",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "type": "paid",
-      "source": "packages/zq-asin-lookup/0.1.6/claude-code/SKILL.md"
+      "source": "packages/zq-asin-lookup/0.1.7/claude-code/SKILL.md"
     },
     {
       "id": "zq-config",
@@ -40,9 +40,9 @@
     },
     {
       "id": "zq-video-understanding",
-      "version": "2.2.9",
+      "version": "2.2.10",
       "type": "paid",
-      "source": "packages/zq-video-understanding/2.2.9/claude-code/SKILL.md"
+      "source": "packages/zq-video-understanding/2.2.10/claude-code/SKILL.md"
     }
   ]
 }

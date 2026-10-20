@@ -2,7 +2,7 @@
 name: zq-video-understanding
 description: 上传用户视频到平台，异步生成结构化视觉分析，并由平台脚本提取 6 至 10 张真实关键帧，说明模型选点或平台补选来源。
 ---
-<!-- zq-skills: zq-video-understanding v2.2.9 target=claude-code -->
+<!-- zq-skills: zq-video-understanding v2.2.10 target=claude-code -->
 
 ## 平台连接
 
@@ -143,7 +143,9 @@ Authorization: Bearer <ZQ_API_KEY>
 
 - `queued` / `processing`：继续等待；
 - `completed`：读取 `result` 和 `issues`；
-- `failed` / `cancelled`：停止轮询并转述 `issues`；
+- `failed`：停止轮询，读取并如实转述 `error.code` 和 `error.message`，同时保留 `issues`；
+  `issues` 可能为空，不能据此丢弃失败原因，也不推定未收费；
+- `cancelled`：停止轮询，转述实际返回的取消信息与 `issues`；未返回 error 时不编造原因；
 - 超过约 10 分钟仍未终态：保存 `analysis_id`，提示用户稍后继续查询，
   不要高频空转。
 
