@@ -2,7 +2,7 @@
 name: zq-listing
 description: 当用户要为 Amazon、Walmart、eBay、Ozon、Wildberries 或 TikTok 市场生成商品 Listing 文案，或对已有 Listing 独立评分和获得修改建议时使用。
 ---
-<!-- zq-skills: zq-listing v0.5.9 target=claude-code -->
+<!-- zq-skills: zq-listing v0.6.0 target=claude-code -->
 
 ## 平台连接
 
@@ -94,7 +94,9 @@ questions:
 | tiktok_us / tiktok_mx | TikTok | en-US / es-MX |
 
 `feedbackLanguage` 只决定反馈语言（zh-CN 默认，或 en-US），不覆盖市场文案语言。
-不要猜未支持的市场。核心事实或市场缺失时先补齐；参考稿不是商品事实证据。
+不要猜未支持的市场。反馈语言也适用于 warnings.message 和修改建议；Amazon JP 的买家文案仍为日文。
+核心事实或市场缺失时先补齐；参考稿不是商品事实证据。收到 LIMITED_PRODUCT_FACTS 时，
+只补问适用且可核实的规格、材质、尺寸等信息；未知保持缺失，不为凑数量编造事实。
 
 ## 执行流程
 
@@ -180,6 +182,11 @@ Content-Type: application/json
 
 评分只在 Amazon 接受 `options.mode`（standard/custom）和 custom 的 ownBrand；
 若 listing 也含 mode/ownBrand，两处必须一致。其他平台评分不发 options。
+仅 Amazon 评分可选 `variationApplicability:"applicable"|"not_applicable"`，生成请求不发送。
+用户明确确认无变体，且 listing 与 productFacts 都没有 variations 时，才可声明 not_applicable；
+平台会将该项剔出分母。与已有变体资料冲突或用于其他市场均返回 422。未声明且无变体资料时，
+该项按证据缺失计 0 分并留在分母，不代用户默认声明“不适用”。
+
 HTTP 202 的 `data.id` 为 `lscore_` 前缀；GET `/api/v1/listings/scores/{id}` 查询。
 
 ### 查询
@@ -192,8 +199,12 @@ failed 读取 `data.error` 并停止。未完成时 result 为 null。
 ## 交付
 
 生成时交付市场对应的 Listing 字段、warnings、rulesVersion 和任务 ID，不省略
-缺少事实或合规风险提示。评分时交付 total、rating、dimensions、issues、suggestions、
+缺少事实或合规风险提示。同一字段可能有多条不同告警，逐条保留，不按字段合并丢失。评分时交付 total、rating、dimensions、issues、suggestions、
 assessmentCoverage 与 rubricVersion；保留未评估项和覆盖率，不能把未评估视为通过。
+
+规则与评分以原任务 rulesVersion / rubricVersion 为准；读取旧任务不按当前版本重算。
+分数须结合 assessmentCoverage、未评估项及适用性解释；关键词月量由平台按 period 处理，
+原样传真实数据，不在客户端伪造周量或重算平台评分。
 
 用户只要其中一项时不要自动增加另一项模型任务。反馈使用用户选择的语言，
 商品文案保留目标市场语言。不复制平台内部评分规则、权重或提示词。
@@ -209,11 +220,11 @@ assessmentCoverage 与 rubricVersion；保留未评估项和覆盖率，不能�
 | billing_unavailable / skill_unavailable | 联系项目方，停止创建，不修改项目计费属性绕过 |
 | billing_pending / billing_blocked（查询时） | 扣费未确认或被拒，不交付产物：稍后重查原任务；被拒时联系项目方处理原账单，不换键重新生成 |
 | admission_timeout / submission_unknown / POST 网络或 5xx | 有 ID 查询原任务；无 ID 保存原键原完整请求，用户明确要求恢复后才原样重放 |
-| TASK_TIMEOUT / TASK_INTERRUPTED / TASK_FAILED，以及生成输出完全不可解析时的 MODEL_OUTPUT_INVALID | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本；实际终态和费用以原任务回执为准，不保证校验失败都降级交付 |
+| TASK_TIMEOUT / TASK_INTERRUPTED / TASK_FAILED / MODEL_OUTPUT_INVALID / INSUFFICIENT_PRODUCT_FACTS | 停止；交付任务 ID 和可行动错误，不自动新建或声称无成本；实际终态和费用以原任务回执为准，不保证校验失败都降级交付 |
 | completed 但 issues 含 severity=error（生成降级交付） | 非失败：交付 result 内容并逐条转述 issues 与 suggestion；是否重新生成（会再次扣积分、用新幂等键）必须先征得用户同意 |
 | delivery_unavailable / GET 网络或 5xx | 间隔重试最多 2 次，仍失败保留原任务 ID，不能重新生成替代查询 |
 
-NEW 202 是受理提交时的初始回执，不代表响应送达时的当前执行或费用状态；随后用原任务 ID 查询，重放也读取原任务，不换键新建。429 可能是时间窗口限流或任务容量限制。优先按 Retry-After 或 MCP next_action.retry_after_seconds 等待，不把等待建议当成完成时间。上传登记当前每用户 30 次/小时，任务创建共享每分钟 60 次 NEW 准备；原键有效重放不消耗新任务额度。任务恢复复用原键原完整参数，不换 Key 或幂等键绕过限流。明确的上传 429 未签发 file_ref，可等待后重试；网络结果未知时不自动重新登记。
+NEW 202 是受理提交时的初始回执，不代表响应送达时的当前执行或费用状态；随后用原任务 ID 查询，重放也读取原任务，不换键新建。图片或视频查询出现 phase=recovering 时，说明“上游调用异常，正在确认原任务结果，请勿重复提交”，不能称为正常生成中。创建响应即使为恢复型 503，只要带已确认任务 ID，仍查询原任务。failed/cancelled 是终态，停止轮询；失败不证明未收费或已退款，费用缺失也不表示免费，usage 不作为积分账单。429 可能是时间窗口限流或任务容量限制。优先按 Retry-After 或 MCP next_action.retry_after_seconds 等待，不把等待建议当成完成时间。上传登记当前每用户 30 次/小时，任务创建共享每分钟 60 次 NEW 准备；原键有效重放不消耗新任务额度。任务恢复复用原键原完整参数，不换 Key 或幂等键绕过限流。明确的上传 429 未签发 file_ref，可等待后重试；网络结果未知时不自动重新登记。
 
 
 ## MCP 请求示例
